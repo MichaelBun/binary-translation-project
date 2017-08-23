@@ -887,7 +887,7 @@ int fix_instructions_displacements()
 /* insert_call_probed_wrapper() */
 /*****************************************/
 
-void insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT inst_insert_func){ //snoop dogg
+void insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT inst_insert_func){ 
 	xed_decoded_inst_t xedd;
 	xed_error_enum_t xed_code;							
 	            
