@@ -899,7 +899,7 @@ void insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT inst_insert_func){ //
 		if(i==16){ //call lbl. TODO: check
 			xed_inst1(&enc_instr, dstate, 
 			XED_ICLASS_CALL_NEAR, 64,
-			xed_mem_bd (XED_REG_RIP, xed_disp(new_disp, 32), 64));
+			xed_mem_bd (XED_REG_RIP, xed_disp(new_disp, 32), 64)); //TODO: finish
 		}
 		
 		ADDRINT addr  = inst_insert_func + offset; //offset is defined by rc
