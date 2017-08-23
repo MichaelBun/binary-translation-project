@@ -887,7 +887,9 @@ int fix_instructions_displacements()
 /* insert_call_probed_wrapper() */
 /*****************************************/
 
+
 void insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT inst_insert_func){ 
+
 	xed_decoded_inst_t xedd;
 	xed_error_enum_t xed_code;							
 	            
@@ -902,7 +904,7 @@ void insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT inst_insert_func){
 			xed_mem_bd (XED_REG_RIP, xed_disp(new_disp, 32), 64)); //TODO: finish
 		}
 		
-		ADDRINT addr  = inst_insert_func + offset; //offset is defined by rc
+		ADDRINT addr  = mmap_addr + offset; //offset is defined by rc
 		xed_code = xed_decode(&xedd, reinterpret_cast<UINT8*>(addr), max_inst_len);
 
 		if (xed_code != XED_ERROR_NONE) {
@@ -933,9 +935,9 @@ int find_candidate_rtns_for_translation(IMG img)
 
 	//open and map "inline_inst.bin". must be in the same folder
 	int fd = open("inline_inst.bin", O_RDONLY);
-	char * inst_incert_func = (char *) mmap(NULL, 60, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE, fd, 0);
+	char * mmap_addr = (char *) mmap(NULL, 60, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE, fd, 0);
 	
-	if ((ADDRINT) inst_incert_func == 0xffffffffffffffff) {
+	if ((ADDRINT) mmap_addr == 0xffffffffffffffff) {
 	   cerr << "failed to allocate a binary file" << endl;
        return -1;
 	}
@@ -1011,6 +1013,9 @@ int find_candidate_rtns_for_translation(IMG img)
 							break;*/
 
 							//Replace with probed
+							ADDRINT *ptr = (ADDRINT *)&CheckAddIns;
+							ADDRINT func_address = (ADDRINT)ptr;
+							insert_call_probed_wrapper(func_address,mmap_addr);
 							
 						}
 
@@ -1023,6 +1028,10 @@ int find_candidate_rtns_for_translation(IMG img)
 							break;*/
 
 							//Replace with probed
+							
+							ADDRINT *ptr = (ADDRINT *)&CheckAddInsIndexReg;
+							ADDRINT func_address = (ADDRINT)ptr;
+							insert_call_probed_wrapper(func_address,mmap_addr);
 						}
 					}
 				} 
@@ -1042,6 +1051,10 @@ int find_candidate_rtns_for_translation(IMG img)
 								IARG_END);*/
 
 							//Replace with probed
+							
+							ADDRINT *ptr = (ADDRINT *)&RecordMemRead;
+							ADDRINT func_address = (ADDRINT)ptr;
+							insert_call_probed_wrapper(func_address,mmap_addr);
 						}
 						// Note that in some architectures a single memory operand can be 
 						// both read and written (for instance incl (%eax) on IA-32)
@@ -1057,6 +1070,10 @@ int find_candidate_rtns_for_translation(IMG img)
 								IARG_END);*/
 
 							//Replace with probed
+							
+							ADDRINT *ptr = (ADDRINT *)&RecordMemWrite;
+							ADDRINT func_address = (ADDRINT)ptr;
+							insert_call_probed_wrapper(func_address,mmap_addr);
 						}
 					}
 				}
