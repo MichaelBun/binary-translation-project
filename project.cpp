@@ -883,6 +883,46 @@ int fix_instructions_displacements()
    return 0;
  }
 
+/*****************************************/
+/* insert_call_probed_wrapper() */
+/*****************************************/
+
+void insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT inst_insert_func){ //snoop dogg
+	xed_decoded_inst_t xedd;
+	xed_error_enum_t xed_code;							
+	            
+	xed_decoded_inst_zero_set_mode(&xedd,&dstate); 
+	int rc;
+	int offset = 0;
+	
+	for(int i=0; i<30; i++){ //TODO: check how many instr in the file
+		if(i==16){ //call lbl. TODO: check
+			xed_inst1(&enc_instr, dstate, 
+			XED_ICLASS_CALL_NEAR, 64,
+			xed_mem_bd (XED_REG_RIP, xed_disp(new_disp, 32), 64));
+		}
+		
+		ADDRINT addr  = inst_insert_func + offset; //offset is defined by rc
+		xed_code = xed_decode(&xedd, reinterpret_cast<UINT8*>(addr), max_inst_len);
+
+		if (xed_code != XED_ERROR_NONE) {
+			cerr << "ERROR: xed decode failed for instr at: " << "0x" << hex << addr << endl;
+			RTN_Close( rtn );
+			return 1;
+		}
+
+		// Add instr into instr map:
+		rc = add_new_instr_entry(&xedd, INS_Address(ins), INS_Size(ins));
+		if (rc < 0) {
+			cerr << "ERROR: failed during instructon translation." << endl;
+			RTN_Close( rtn );
+			return 1;
+
+		}	
+		offset+=rc;
+	}//for
+}
+
 
 /*****************************************/
 /* find_candidate_rtns_for_translation() */
@@ -891,6 +931,17 @@ int find_candidate_rtns_for_translation(IMG img)
 {
     int rc;
 
+	//open and map "inline_inst.bin". must be in the same folder
+	int fd = open("inline_inst.bin", O_RDONLY);
+	char * inst_incert_func = (char *) mmap(NULL, 60, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE, fd, 0);
+	
+	if ((ADDRINT) inst_incert_func == 0xffffffffffffffff) {
+	   cerr << "failed to allocate a binary file" << endl;
+       return -1;
+	}
+	
+	
+	
 	// go over routines and check if they are candidates for translation and mark them for translation:
 
 	for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec))
@@ -960,6 +1011,7 @@ int find_candidate_rtns_for_translation(IMG img)
 							break;*/
 
 							//Replace with probed
+							
 						}
 
 						else if (foundIndexReg && foundReg && REG_valid_for_iarg_reg_value(operandReg)
