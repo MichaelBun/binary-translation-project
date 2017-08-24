@@ -940,7 +940,12 @@ int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr){
 	for(int i=0; i<30; i++){ //TODO: check how many instr in the file
 		ADDRINT addr  = mmap_addr + offset; //offset is defined by rc
 		if(i==16){ //call lbl. TODO: check
+			
 			rc = create_call_xed(&xedd,func_addr);
+			if(rc == -1){
+				cerr<< "ERROR: create calll xed" << endl;
+				return -1;
+			}
 			continue;
 		}
 		else
@@ -958,6 +963,7 @@ int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr){
 		xed_uint_t size_inst = xed_decoded_inst_get_length(&xedd); 
 		rc = add_new_instr_entry(&xedd, addr, size_inst);
 		if (rc < 0) {
+			cerr<< "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
 			cerr << "ERROR: failed during instructon translation." << endl;
 			//RTN_Close( rtn );
 			return 1;
