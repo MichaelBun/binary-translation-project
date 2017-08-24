@@ -938,9 +938,14 @@ int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr){
 	int rc;
 	int offset = 0;
 	
+<<<<<<< HEAD
 	for(unsigned int i=0; i<30; i++){ //TODO: check how many instr in the file
 		cerr << "We are on:  " << std::dec<< i << endl;
 		xed_decoded_inst_zero_set_mode(&xedd,&dstate); 
+=======
+	
+	for(int i=0; i<30; i++){ //TODO: check how many instr in the file
+>>>>>>> 8c3bf80a666f2f44e06f3b22783066d76d2acb2f
 		ADDRINT addr  = mmap_addr + offset; //offset is defined by rc
 		if(i==16){ //call lbl. TODO: check
 			rc = create_call_xed(&xedd,func_addr);
