@@ -925,6 +925,42 @@ void insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT inst_insert_func){
 	}//for
 }
 
+/*****************************************/
+/* create_call_xed() */
+/*****************************************/
+int create_call_xed(xed_decoded_inst_t *xedd, xed_int32_t disp) {
+// create a direct uncond jump to the same address:
+xed_uint8_t enc_buf2[XED_MAX_INSTRUCTION_BYTES];
+xed_encoder_instruction_t enc_instr;
+unsigned int max_size = XED_MAX_INSTRUCTION_BYTES;
+unsigned int new_size = 0;
+
+xed_error_enum_t xed_error;
+
+xed_inst1(&enc_instr, dstate, XED_ICLASS_CALL_NEAR, 64,
+xed_relbr(disp, 32));
+xed_encoder_request_zero_set_mode(xedd, &dstate);
+xed_bool_t convert_ok = xed_convert_to_encoder_request(xedd, &enc_instr);
+if (!convert_ok) {
+cerr << "conversion to encode request failed" << endl;
+return -1;
+}
+
+//xed_error = xed_encode (&enc_req, enc_buf2, max_size, &new_size);
+xed_error = xed_encode(xedd, enc_buf2, max_size, &new_size);
+if (xed_error != XED_ERROR_NONE) {
+cerr << "ENCODE ERROR: " << xed_error_enum_t2str(xed_error) << endl;
+return -1;
+}
+xed_error = xed_decode(xedd, reinterpret_cast<UINT8*>(enc_buf2), max_size);
+
+if (xed_error != XED_ERROR_NONE) {
+cerr << "ERROR: xed decode failed for instr" << endl;
+return -1;
+}
+return new_size;
+}
+
 
 /*****************************************/
 /* find_candidate_rtns_for_translation() */
