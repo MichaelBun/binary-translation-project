@@ -883,47 +883,6 @@ int fix_instructions_displacements()
    return 0;
  }
 
-/*****************************************/
-/* insert_call_probed_wrapper() */
-/*****************************************/
-
-
-void insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT inst_insert_func){ 
-
-	xed_decoded_inst_t xedd;
-	xed_error_enum_t xed_code;							
-	            
-	xed_decoded_inst_zero_set_mode(&xedd,&dstate); 
-	int rc;
-	int offset = 0;
-	
-	for(int i=0; i<30; i++){ //TODO: check how many instr in the file
-		if(i==16){ //call lbl. TODO: check
-			xed_inst1(&enc_instr, dstate, 
-			XED_ICLASS_CALL_NEAR, 64,
-			xed_mem_bd (XED_REG_RIP, xed_disp(new_disp, 32), 64)); //TODO: finish
-		}
-		
-		ADDRINT addr  = mmap_addr + offset; //offset is defined by rc
-		xed_code = xed_decode(&xedd, reinterpret_cast<UINT8*>(addr), max_inst_len);
-
-		if (xed_code != XED_ERROR_NONE) {
-			cerr << "ERROR: xed decode failed for instr at: " << "0x" << hex << addr << endl;
-			RTN_Close( rtn );
-			return 1;
-		}
-
-		// Add instr into instr map:
-		rc = add_new_instr_entry(&xedd, INS_Address(ins), INS_Size(ins));
-		if (rc < 0) {
-			cerr << "ERROR: failed during instructon translation." << endl;
-			RTN_Close( rtn );
-			return 1;
-
-		}	
-		offset+=rc;
-	}//for
-}
 
 /*****************************************/
 /* create_call_xed() */
@@ -961,6 +920,48 @@ return -1;
 return new_size;
 }
 
+
+
+
+/*****************************************/
+/* insert_call_probed_wrapper() */
+/*****************************************/
+
+
+void insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT inst_insert_func){ 
+
+	xed_decoded_inst_t xedd;
+	xed_error_enum_t xed_code;							
+	            
+	xed_decoded_inst_zero_set_mode(&xedd,&dstate); 
+	int rc;
+	int offset = 0;
+	
+	for(int i=0; i<30; i++){ //TODO: check how many instr in the file
+		if(i==16){ //call lbl. TODO: check
+			create_call_xed(&xedd,func_addr);
+		}
+		
+		ADDRINT addr  = mmap_addr + offset; //offset is defined by rc
+		xed_code = xed_decode(&xedd, reinterpret_cast<UINT8*>(addr), max_inst_len);
+
+		if (xed_code != XED_ERROR_NONE) {
+			cerr << "ERROR: xed decode failed for instr at: " << "0x" << hex << addr << endl;
+			RTN_Close( rtn );
+			return 1;
+		}
+
+		// Add instr into instr map:
+		rc = add_new_instr_entry(&xedd, INS_Address(ins), INS_Size(ins));
+		if (rc < 0) {
+			cerr << "ERROR: failed during instructon translation." << endl;
+			RTN_Close( rtn );
+			return 1;
+
+		}	
+		offset+=rc;
+	}//for
+}
 
 /*****************************************/
 /* find_candidate_rtns_for_translation() */
