@@ -928,7 +928,7 @@ return new_size;
 /*****************************************/
 
 
-void insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT inst_insert_func){ 
+int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr){ 
 
 	xed_decoded_inst_t xedd;
 	xed_error_enum_t xed_code;							
@@ -938,29 +938,34 @@ void insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT inst_insert_func){
 	int offset = 0;
 	
 	for(int i=0; i<30; i++){ //TODO: check how many instr in the file
-		if(i==16){ //call lbl. TODO: check
-			create_call_xed(&xedd,func_addr);
-		}
-		
 		ADDRINT addr  = mmap_addr + offset; //offset is defined by rc
-		xed_code = xed_decode(&xedd, reinterpret_cast<UINT8*>(addr), max_inst_len);
+		if(i==16){ //call lbl. TODO: check
+			rc = create_call_xed(&xedd,func_addr);
+			continue;
+		}
+		else
+		{
+			xed_code = xed_decode(&xedd, reinterpret_cast<UINT8*>(addr), max_inst_len);
 
-		if (xed_code != XED_ERROR_NONE) {
-			cerr << "ERROR: xed decode failed for instr at: " << "0x" << hex << addr << endl;
-			RTN_Close( rtn );
-			return 1;
+			if (xed_code != XED_ERROR_NONE) {
+				cerr << "ERROR: xed decode failed for instr at: " << "0x" << hex << addr << endl;
+				//RTN_Close( rtn );
+				return 1;
+			}
 		}
 
 		// Add instr into instr map:
-		rc = add_new_instr_entry(&xedd, INS_Address(ins), INS_Size(ins));
+		xed_uint_t size_inst = xed_decoded_inst_get_length(&xedd); 
+		rc = add_new_instr_entry(&xedd, addr, size_inst);
 		if (rc < 0) {
 			cerr << "ERROR: failed during instructon translation." << endl;
-			RTN_Close( rtn );
+			//RTN_Close( rtn );
 			return 1;
 
 		}	
 		offset+=rc;
 	}//for
+	return 0;
 }
 
 /*****************************************/
@@ -1052,7 +1057,7 @@ int find_candidate_rtns_for_translation(IMG img)
 							//Replace with probed
 							ADDRINT *ptr = (ADDRINT *)&CheckAddIns;
 							ADDRINT func_address = (ADDRINT)ptr;
-							insert_call_probed_wrapper(func_address,mmap_addr);
+							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
 							
 						}
 
@@ -1068,7 +1073,7 @@ int find_candidate_rtns_for_translation(IMG img)
 							
 							ADDRINT *ptr = (ADDRINT *)&CheckAddInsIndexReg;
 							ADDRINT func_address = (ADDRINT)ptr;
-							insert_call_probed_wrapper(func_address,mmap_addr);
+							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
 						}
 					}
 				} 
@@ -1091,7 +1096,7 @@ int find_candidate_rtns_for_translation(IMG img)
 							
 							ADDRINT *ptr = (ADDRINT *)&RecordMemRead;
 							ADDRINT func_address = (ADDRINT)ptr;
-							insert_call_probed_wrapper(func_address,mmap_addr);
+							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
 						}
 						// Note that in some architectures a single memory operand can be 
 						// both read and written (for instance incl (%eax) on IA-32)
@@ -1110,7 +1115,7 @@ int find_candidate_rtns_for_translation(IMG img)
 							
 							ADDRINT *ptr = (ADDRINT *)&RecordMemWrite;
 							ADDRINT func_address = (ADDRINT)ptr;
-							insert_call_probed_wrapper(func_address,mmap_addr);
+							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
 						}
 					}
 				}
