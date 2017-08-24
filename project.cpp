@@ -476,6 +476,7 @@ int add_new_instr_entry(xed_decoded_inst_t *xedd, ADDRINT pc, unsigned int size)
 	
 	xed_error_enum_t xed_error = xed_encode (xedd, reinterpret_cast<UINT8*>(instr_map[num_of_instr_map_entries].encoded_ins), max_inst_len , &new_size);
 	if (xed_error != XED_ERROR_NONE) {
+		//cerr<< "111111111111111111111111111111111111";
 		cerr << "ENCODE ERROR: " << xed_error_enum_t2str(xed_error) << endl;		
 		return -1;
 	}	
@@ -933,14 +934,15 @@ int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr){
 	xed_decoded_inst_t xedd;
 	xed_error_enum_t xed_code;							
 	            
-	xed_decoded_inst_zero_set_mode(&xedd,&dstate); 
+	
 	int rc;
 	int offset = 0;
 	
-	for(int i=0; i<30; i++){ //TODO: check how many instr in the file
+	for(unsigned int i=0; i<30; i++){ //TODO: check how many instr in the file
+		cerr << "We are on:  " << std::dec<< i << endl;
+		xed_decoded_inst_zero_set_mode(&xedd,&dstate); 
 		ADDRINT addr  = mmap_addr + offset; //offset is defined by rc
 		if(i==16){ //call lbl. TODO: check
-			
 			rc = create_call_xed(&xedd,func_addr);
 			if(rc == -1){
 				cerr<< "ERROR: create calll xed" << endl;
@@ -958,12 +960,12 @@ int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr){
 				return 1;
 			}
 		}
-
 		// Add instr into instr map:
-		xed_uint_t size_inst = xed_decoded_inst_get_length(&xedd); 
+		xed_uint_t size_inst = xed_decoded_inst_get_length(&xedd);
 		rc = add_new_instr_entry(&xedd, addr, size_inst);
+		//cerr<< "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu" << endl;
 		if (rc < 0) {
-			cerr<< "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+			//cerr<< "!!!!!!!!!!!!!!!!!!! " << i << endl;
 			cerr << "ERROR: failed during instructon translation." << endl;
 			//RTN_Close( rtn );
 			return 1;
@@ -1170,6 +1172,7 @@ int find_candidate_rtns_for_translation(IMG img)
 				// Add instr into instr map:
 				rc = add_new_instr_entry(&xedd, INS_Address(ins), INS_Size(ins));
 				if (rc < 0) {
+					cerr << "1111111111111111111111111111" << endl;
 					cerr << "ERROR: failed during instructon translation." << endl;
 					RTN_Close( rtn );
 					return 1;
