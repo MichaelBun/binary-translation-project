@@ -983,6 +983,10 @@ debug_cnt++;//TODO: debug
 /*****************************************/
 int find_candidate_rtns_for_translation(IMG img)
 {
+	if (!IMG_IsMainExecutable(img))
+		return 0;
+	
+	
     int rc;
 
 	//open and map "inline_inst.bin". must be in the same folder
@@ -1062,12 +1066,13 @@ int find_candidate_rtns_for_translation(IMG img)
 							/*INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)CheckAddIns, 
 								IARG_REG_VALUE, operandReg, IARG_UINT64, immediate,
 								IARG_INST_PTR, IARG_UINT64, INS_Size(ins), IARG_END);
-							break;*/
+							*/
 
 							//Replace with probed
 							ADDRINT *ptr = (ADDRINT *)&CheckAddIns;
 							ADDRINT func_address = (ADDRINT)ptr;
 							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							break;
 							
 						}
 
@@ -1077,13 +1082,14 @@ int find_candidate_rtns_for_translation(IMG img)
 							/*INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)CheckAddInsIndexReg, 
 								IARG_REG_VALUE, operandReg, IARG_REG_VALUE, indexReg,
 								IARG_INST_PTR, IARG_UINT64, INS_Size(ins), IARG_END);
-							break;*/
+							*/
 
 							//Replace with probed
 							
 							ADDRINT *ptr = (ADDRINT *)&CheckAddInsIndexReg;
 							ADDRINT func_address = (ADDRINT)ptr;
 							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							break;
 						}
 					}
 				} 
