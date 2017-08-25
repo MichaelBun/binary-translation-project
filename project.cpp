@@ -497,6 +497,7 @@ int add_new_instr_entry(xed_decoded_inst_t *xedd, ADDRINT pc, unsigned int size)
 	tc_cursor += new_size;    	     
 
 	if (num_of_instr_map_entries >= max_ins_count) {
+		
 		cerr << "out of memory for map_instr" << endl;
 		return -1;
 	}
@@ -927,10 +928,10 @@ return new_size;
 /*****************************************/
 /* insert_call_probed_wrapper() */
 /*****************************************/
-
+int debug_cnt = 0; //TODO: debug
 
 int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr){ 
-
+debug_cnt++;//TODO: debug
 	xed_decoded_inst_t xedd;
 	xed_error_enum_t xed_code;							
 	            
@@ -940,7 +941,7 @@ int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr){
 	
 
 	for(unsigned int i=0; i<30; i++){ //TODO: check how many instr in the file
-		cerr << "We are on:  " << std::dec<< i << endl;
+		//cerr << "We are on:  " << std::dec<< i << endl;
 		xed_decoded_inst_zero_set_mode(&xedd,&dstate); 
 
 		ADDRINT addr  = mmap_addr + offset; //offset is defined by rc
@@ -965,7 +966,6 @@ int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr){
 		// Add instr into instr map:
 		xed_uint_t size_inst = xed_decoded_inst_get_length(&xedd);
 		rc = add_new_instr_entry(&xedd, addr, size_inst);
-		//cerr<< "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu" << endl;
 		if (rc < 0) {
 			//cerr<< "!!!!!!!!!!!!!!!!!!! " << i << endl;
 			cerr << "ERROR: failed during instructon translation." << endl;
@@ -1520,6 +1520,7 @@ int allocate_and_init_memory(IMG img)
 		if (highest_sec_addr < SEC_Address(sec) + SEC_Size(sec))
 			highest_sec_addr = SEC_Address(sec) + SEC_Size(sec);
 
+		
 		// need to avouid using RTN_Open as it is expensive...
         for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn))
         {		
@@ -1532,7 +1533,7 @@ int allocate_and_init_memory(IMG img)
 		}
 	}
 
-	max_ins_count *= 4;
+	max_ins_count *= 40; //TODO: check current parameter. prev parameter = 4
 
 	// Allocate memory for the instr map needed to fix all branch targets in translated routines:
 	instr_map = (instr_map_t *)calloc(max_ins_count, sizeof(instr_map_t));
@@ -1688,7 +1689,9 @@ VOID ImageLoad(IMG img, VOID *v)
 	rc = copy_instrs_to_tc();
 	if (rc < 0 )
 		return;
-
+cerr << "<<<<<<<<<<<<<<<<<< num of entries: " << std::dec <<num_of_instr_map_entries;
+		cerr << " max ins: " << std::dec<< max_ins_count << " >>>>>>>>>>>>>>>>>>" << endl;
+	cerr<< "num of entries to insert_call_wrapper: " << debug_cnt <<endl;//TODO: debug
 	cout << "after write all new instructions to memory tc" << endl;
 
    if (KnobDumpTranslatedCode) {
