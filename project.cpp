@@ -1032,7 +1032,7 @@ int find_candidate_rtns_for_translation(IMG img)
 				if (INS_IsAdd(ins))
 				{
 					UINT32 opNum = INS_OperandCount(ins);
-					//UINT64 immediate = 0;  /*for compile testing*/
+					UINT64 immediate = 0;  /*for compile testing*/
 					REG operandReg = REG_INVALID();
 					REG indexReg = REG_INVALID();
 					bool foundReg = false;
@@ -1043,7 +1043,7 @@ int find_candidate_rtns_for_translation(IMG img)
 					{
 						if (!foundImm && INS_OperandIsImmediate(ins, i))
 						{
-							//immediate = INS_OperandImmediate(ins, i); /*for compile testing*/
+							immediate = INS_OperandImmediate(ins, i); /*for compile testing*/
 							foundImm = true;
 						}
 
@@ -1069,10 +1069,17 @@ int find_candidate_rtns_for_translation(IMG img)
 							*/
 
 							//Replace with probed
-							ADDRINT *ptr = (ADDRINT *)&CheckAddIns;
-							ADDRINT func_address = (ADDRINT)ptr;
-							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
-							break;
+							//ADDRINT *ptr = (ADDRINT *)&CheckAddIns;
+							//ADDRINT func_address = (ADDRINT)ptr;
+							//insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							
+								if (!mallocTracer.IsAllocatedAddress(operandReg))
+									continue;
+
+								if (mallocTracer.GetStartAddress(operandReg + immediate) != mallocTracer.GetStartAddress(operandReg))
+									suspiciousAddresses.insert(INS_Address(ins) + INS_Size(ins));
+							
+								break;
 							
 						}
 
@@ -1086,9 +1093,15 @@ int find_candidate_rtns_for_translation(IMG img)
 
 							//Replace with probed
 							
-							ADDRINT *ptr = (ADDRINT *)&CheckAddInsIndexReg;
-							ADDRINT func_address = (ADDRINT)ptr;
-							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							//ADDRINT *ptr = (ADDRINT *)&CheckAddInsIndexReg;
+							//ADDRINT func_address = (ADDRINT)ptr;
+							//insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							if (!mallocTracer.IsAllocatedAddress(operandReg))
+								continue;
+		
+							if (mallocTracer.GetStartAddress(operandReg + indexReg) != mallocTracer.GetStartAddress(operandReg))
+								suspiciousAddresses.insert(INS_Address(ins) + INS_Size(ins));
+						
 							break;
 						}
 					}
