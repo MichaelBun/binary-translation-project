@@ -1479,6 +1479,7 @@ void commit_translated_routines()
 /**********************************************/
 void commit_uncommit_translated_routines(void *v) 
 {
+	cerr<< "run  commit_uncommit_translated_routines" << endl; //TODO: debug
     while (!enable_commit_uncommit_flag){};
 	asm volatile("mfence");	
 	sleep(1);
