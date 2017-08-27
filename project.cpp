@@ -1032,7 +1032,7 @@ int find_candidate_rtns_for_translation(IMG img)
 				if (INS_IsAdd(ins))
 				{
 					UINT32 opNum = INS_OperandCount(ins);
-					UINT64 immediate = 0;  /*for compile testing*/
+					//UINT64 immediate = 0;  /*for compile testing*/
 					REG operandReg = REG_INVALID();
 					REG indexReg = REG_INVALID();
 					bool foundReg = false;
@@ -1043,7 +1043,7 @@ int find_candidate_rtns_for_translation(IMG img)
 					{
 						if (!foundImm && INS_OperandIsImmediate(ins, i))
 						{
-							immediate = INS_OperandImmediate(ins, i); /*for compile testing*/
+							//immediate = INS_OperandImmediate(ins, i); /*for compile testing*/
 							foundImm = true;
 						}
 
@@ -1070,8 +1070,8 @@ int find_candidate_rtns_for_translation(IMG img)
 
 							//Replace with probed
 							ADDRINT *ptr = (ADDRINT *)&CheckAddIns;
-							func_address = (ADDRINT)ptr;
-							insADDRINTert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							ADDRINT func_address = (ADDRINT)ptr;
+							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
 							
 							
 						}
