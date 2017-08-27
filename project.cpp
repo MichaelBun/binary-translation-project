@@ -1072,7 +1072,7 @@ int find_candidate_rtns_for_translation(IMG img)
 							ADDRINT *ptr = (ADDRINT *)&CheckAddIns;
 							ADDRINT func_address = (ADDRINT)ptr;
 							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
-							
+							break;
 							
 						}
 
@@ -1089,6 +1089,7 @@ int find_candidate_rtns_for_translation(IMG img)
 							ADDRINT *ptr = (ADDRINT *)&CheckAddInsIndexReg;
 							ADDRINT func_address = (ADDRINT)ptr;
 							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							break;
 						}
 					}
 				} 
@@ -1606,6 +1607,9 @@ VOID ImageLoad(IMG img, VOID *v)
 	// debug print of all images' instructions
 	//dump_all_image_instrs(img);
 
+    // Step 0: Check that the image is of the main executable file:
+	if (!IMG_IsMainExecutable(img))
+		return;
 	
 	/* ============================================ */
 	/* malloc trace instrumentation				    */
@@ -1655,9 +1659,6 @@ VOID ImageLoad(IMG img, VOID *v)
 	/* malloc trace instrumentation				    */
 	/* ============================================ */
 	
-	// Step 0: Check that the image is of the main executable file:
-	if (!IMG_IsMainExecutable(img))
-		return;
 
 	int rc = 0;
 
