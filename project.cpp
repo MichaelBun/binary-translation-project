@@ -1069,17 +1069,10 @@ int find_candidate_rtns_for_translation(IMG img)
 							*/
 
 							//Replace with probed
-							//ADDRINT *ptr = (ADDRINT *)&CheckAddIns;
-							//ADDRINT func_address = (ADDRINT)ptr;
-							//insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							ADDRINT *ptr = (ADDRINT *)&CheckAddIns;
+							func_address = (ADDRINT)ptr;
+							insADDRINTert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
 							
-								if (!mallocTracer.IsAllocatedAddress(operandReg))
-									continue;
-
-								if (mallocTracer.GetStartAddress(operandReg + immediate) != mallocTracer.GetStartAddress(operandReg))
-									suspiciousAddresses.insert(INS_Address(ins) + INS_Size(ins));
-							
-								break;
 							
 						}
 
@@ -1093,16 +1086,9 @@ int find_candidate_rtns_for_translation(IMG img)
 
 							//Replace with probed
 							
-							//ADDRINT *ptr = (ADDRINT *)&CheckAddInsIndexReg;
-							//ADDRINT func_address = (ADDRINT)ptr;
-							//insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
-							if (!mallocTracer.IsAllocatedAddress(operandReg))
-								continue;
-		
-							if (mallocTracer.GetStartAddress(operandReg + indexReg) != mallocTracer.GetStartAddress(operandReg))
-								suspiciousAddresses.insert(INS_Address(ins) + INS_Size(ins));
-						
-							break;
+							ADDRINT *ptr = (ADDRINT *)&CheckAddInsIndexReg;
+							ADDRINT func_address = (ADDRINT)ptr;
+							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
 						}
 					}
 				} 
@@ -1620,9 +1606,6 @@ VOID ImageLoad(IMG img, VOID *v)
 	// debug print of all images' instructions
 	//dump_all_image_instrs(img);
 
-    // Step 0: Check that the image is of the main executable file:
-	if (!IMG_IsMainExecutable(img))
-		return;
 	
 	/* ============================================ */
 	/* malloc trace instrumentation				    */
@@ -1672,6 +1655,9 @@ VOID ImageLoad(IMG img, VOID *v)
 	/* malloc trace instrumentation				    */
 	/* ============================================ */
 	
+	// Step 0: Check that the image is of the main executable file:
+	if (!IMG_IsMainExecutable(img))
+		return;
 
 	int rc = 0;
 
