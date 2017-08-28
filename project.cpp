@@ -151,6 +151,7 @@ VOID mainAfter()
 // Print a memory read record
 VOID RecordMemRead(VOID * ip, ADDRINT addr)
 {
+	cerr << "TEST " << endl; //debug
 	if (!IsCalledAfterMain())
 		return;
 	
@@ -176,6 +177,21 @@ VOID CheckAddIns(ADDRINT regVal, UINT64 immediate, VOID* ip, UINT64 insSize)
 	if (mallocTracer.GetStartAddress(regVal + immediate) != mallocTracer.GetStartAddress(regVal))
 		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
 }
+
+void CheckAddIns0(void* ip, INS ins){ //TODO: finish
+	ADDRINT regVal = INS_OperandReg(ins, 0);
+	cerr << regVal << endl;
+	
+	UINT64 immediate = INS_OperandImmediate(ins, 0);
+	cerr << immediate << endl;
+	
+	UINT64 size = INS_Size(ins);
+	cerr<< size<< endl;
+}
+
+
+
+
 
 bool INS_IsAdd(INS ins)
 {
@@ -931,6 +947,7 @@ return new_size;
 /* insert_call_probed_wrapper() */
 /*****************************************/
 int debug_cnt = 0; //TODO: debug
+int debug_cnt_findRtnFor = 0;
 
 int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr){ 
 debug_cnt++;//TODO: debug
@@ -983,8 +1000,10 @@ debug_cnt++;//TODO: debug
 /*****************************************/
 /* find_candidate_rtns_for_translation() */
 /*****************************************/
+//int debug_x = 0;
 int find_candidate_rtns_for_translation(IMG img)
 {
+	//debug_cnt_findRtnFor++; //debug
 	if (!IMG_IsMainExecutable(img))
 		return 0;
 	
@@ -1033,6 +1052,7 @@ int find_candidate_rtns_for_translation(IMG img)
 				/* ============================================ */
 				if (INS_IsAdd(ins))
 				{
+					
 					UINT32 opNum = INS_OperandCount(ins);
 					//UINT64 immediate = 0;  /*for compile testing*/
 					REG operandReg = REG_INVALID();
@@ -1098,12 +1118,14 @@ int find_candidate_rtns_for_translation(IMG img)
 				else 
 				{
 					UINT32 memOperands = INS_MemoryOperandCount(ins);
-
+				//	cerr << "-----------------------------------------memory operands: " << memOperands << endl;
+				//	if (memOperands != 0) debug_x++;
 					// Iterate over each memory operand of the instruction.
 					for (UINT32 memOp = 0; memOp < memOperands; memOp++)
 					{
 						if (INS_MemoryOperandIsRead(ins, memOp))
 						{
+							debug_cnt_findRtnFor++;
 							 /*INS_InsertCall(
 								ins, IPOINT_BEFORE, (AFUNPTR)RecordMemRead,
 								IARG_INST_PTR,
@@ -1701,6 +1723,7 @@ VOID ImageLoad(IMG img, VOID *v)
 cerr << "<<<<<<<<<<<<<<<<<< num of entries: " << std::dec <<num_of_instr_map_entries;
 		cerr << " max ins: " << std::dec<< max_ins_count << " >>>>>>>>>>>>>>>>>>" << endl;
 	cerr<< "num of entries to insert_call_wrapper: " << debug_cnt <<endl;//TODO: debug
+//	cerr << "num of entries to add_ins: " << debug_x << endl;
 	cout << "after write all new instructions to memory tc" << endl;
 
    if (KnobDumpTranslatedCode) {
