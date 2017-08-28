@@ -974,6 +974,7 @@ debug_cnt++;//TODO: debug
 			if(rc == -1){
 				cerr<< "ERROR: create calll xed" << endl;
 				return -1;
+			}
 			instr_map[num_of_instr_map_entries].new_ins_addr
 		}
 		
