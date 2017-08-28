@@ -151,7 +151,11 @@ VOID mainAfter()
 // Print a memory read record
 VOID RecordMemRead(VOID * ip, ADDRINT addr)
 {
+<<<<<<< HEAD
 	cerr << "TEST " << endl; //debug
+=======
+	cerr << "--------------------------------------------------------------------------------entered RecordMemRead " << endl;
+>>>>>>> 9dc1ba28d6d5a0cd7d63ae02346fbb57f1661cc7
 	if (!IsCalledAfterMain())
 		return;
 	
@@ -964,8 +968,18 @@ debug_cnt++;//TODO: debug
 		xed_decoded_inst_zero_set_mode(&xedd,&dstate); 
 
 		ADDRINT addr  = mmap_addr + offset; //offset is defined by rc
-		if(i==16){ //call lbl. TODO: check
-			rc = create_call_xed(&xedd,func_addr);
+		
+		if(i==4){ //marker
+			rc = create_call_xed(&xedd,4);
+			if(rc == -1){
+				cerr<< "ERROR: create calll xed" << endl;
+				return -1;
+			instr_map[num_of_instr_map_entries].new_ins_addr
+		}
+		
+		else if(i==16){ //call lbl. TODO: check
+			//cerr << "Function address   " << func_addr << endl;
+			rc = create_call_xed(&xedd,func_addr-addr+1);
 			if(rc == -1){
 				cerr<< "ERROR: create calll xed" << endl;
 				return -1;
@@ -1007,6 +1021,21 @@ int find_candidate_rtns_for_translation(IMG img)
 	if (!IMG_IsMainExecutable(img))
 		return 0;
 	
+	ADDRINT *ptr_test1 = (ADDRINT *)&CheckAddIns;
+	ADDRINT func_address_test1 = (ADDRINT)ptr_test1;
+	cerr << "0x" << hex << func_address_test1 << endl;
+	
+	ADDRINT *ptr_test2 = (ADDRINT *)&CheckAddInsIndexReg;
+	ADDRINT func_address_test2 = (ADDRINT)ptr_test2;
+	cerr << "0x" << hex << func_address_test2 << endl;
+	
+	ADDRINT *ptr_test3 = (ADDRINT *)&RecordMemRead;
+	ADDRINT func_address_test3 = (ADDRINT)ptr_test3;
+	cerr << "0x" << hex << func_address_test3 << endl;
+	
+	ADDRINT *ptr_test4 = (ADDRINT *)&RecordMemWrite;
+	ADDRINT func_address_test4 = (ADDRINT)ptr_test4;
+	cerr << "0x" << hex << func_address_test4 << endl;
 	
     int rc;
 
@@ -1429,14 +1458,15 @@ void commit_translated_routines()
 	for (int i=0; i < translated_rtn_num; i++) {
 
 		//replace function by new function in tc
-
+		cerr << "translated_rtn[i].instr_map_entry "<< dec << translated_rtn[i].instr_map_entry << endl;
 		if (translated_rtn[i].instr_map_entry < 0)
 			continue;
 				    
 		if (translated_rtn[i].rtn_size <= MAX_PROBE_JUMP_INSTR_BYTES ||
 			!translated_rtn[i].isSafeForReplacedProbe) 
 			continue;
-
+		
+		//cerr << "translated_rtn_num = " << translated_rtn_num << "            " << "translated_rtn array size = " << (sizeof(translated_rtn) / sizeof(translated_rtn[0]))  << endl;
 		RTN rtn = RTN_FindByAddress(translated_rtn[i].rtn_addr);
 		if (rtn == RTN_Invalid()) {
 			cerr << "probing rtN: Unknown" << endl;
@@ -1512,7 +1542,9 @@ void commit_uncommit_translated_routines(void *v)
 		cerr << "before commit translated routines" << endl;
 
 		PIN_LockClient();
+		//cerr << "We got here ~~~~~~~~~~~~~~~~~" << endl;
 		commit_translated_routines();
+		//cerr << "We got here ~~~~~~~~~~~~~~~~~" << endl;
 		PIN_UnlockClient();
 
 		cerr << "after commit translated routines" << endl;
