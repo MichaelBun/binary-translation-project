@@ -980,7 +980,7 @@ debug_cnt++;//TODO: debug
 		
 		if(i==16){ //call lbl. TODO: check
 			//cerr << "Function address   " << func_addr << endl;
-			rc = create_call_xed(&xedd,func_addr-tc_cursor+1);
+			rc = create_call_xed(&xedd,func_addr);
 			if(rc == -1){
 				cerr<< "ERROR: create calll xed" << endl;
 				return -1;
