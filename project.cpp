@@ -680,10 +680,11 @@ int fix_direct_br_call_to_orig_addr(int instr_map_entry)
 		                   (xed_int64_t)instr_map[instr_map_entry].new_ins_addr - 
 					       xed_decoded_inst_get_length (&xedd);
 
-	if (category_enum == XED_CATEGORY_CALL)
+	if (category_enum == XED_CATEGORY_CALL) //debug: israel
 			xed_inst1(&enc_instr, dstate, 
 			XED_ICLASS_CALL_NEAR, 64,
-			xed_mem_bd (XED_REG_RIP, xed_disp(new_disp, 32), 64));
+			//xed_mem_bd (XED_REG_RIP, xed_disp(new_disp, 32), 64)); 
+					  xed_relbr(new_disp, 32));
 
 	if (category_enum == XED_CATEGORY_UNCOND_BR)
 			xed_inst1(&enc_instr, dstate, 
