@@ -951,7 +951,7 @@ debug_cnt++;//TODO: debug
 				cerr<< "ERROR: create calll xed" << endl;
 				return -1;
 			}
-			continue;
+			//continue;
 		}
 		else
 		{
