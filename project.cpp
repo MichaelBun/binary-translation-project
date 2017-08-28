@@ -151,11 +151,9 @@ VOID mainAfter()
 // Print a memory read record
 VOID RecordMemRead(VOID * ip, ADDRINT addr)
 {
-<<<<<<< HEAD
+
 	cerr << "TEST " << endl; //debug
-=======
-	cerr << "--------------------------------------------------------------------------------entered RecordMemRead " << endl;
->>>>>>> 9dc1ba28d6d5a0cd7d63ae02346fbb57f1661cc7
+
 	if (!IsCalledAfterMain())
 		return;
 	
@@ -969,18 +967,19 @@ debug_cnt++;//TODO: debug
 
 		ADDRINT addr  = mmap_addr + offset; //offset is defined by rc
 		
-		if(i==4){ //marker
-			rc = create_call_xed(&xedd,4);
+		/*if(i==4){ //marker
+			rc = create_call_xed(&xedd,0);
+			cerr << "This is the rc:    " << rc << endl;
 			if(rc == -1){
 				cerr<< "ERROR: create calll xed" << endl;
 				return -1;
 			}
-			instr_map[num_of_instr_map_entries].new_ins_addr
-		}
+			//instr_map[num_of_instr_map_entries].new_ins_addr;
+		}*/
 		
-		else if(i==16){ //call lbl. TODO: check
+		if(i==16){ //call lbl. TODO: check
 			//cerr << "Function address   " << func_addr << endl;
-			rc = create_call_xed(&xedd,func_addr-addr+1);
+			rc = create_call_xed(&xedd,func_addr-tc_cursor+1);
 			if(rc == -1){
 				cerr<< "ERROR: create calll xed" << endl;
 				return -1;
@@ -999,7 +998,7 @@ debug_cnt++;//TODO: debug
 		}
 		// Add instr into instr map:
 		xed_uint_t size_inst = xed_decoded_inst_get_length(&xedd);
-		rc = add_new_instr_entry(&xedd, addr, size_inst);
+		rc = add_new_instr_entry(&xedd, tc_cursor, size_inst);
 		if (rc < 0) {
 			//cerr<< "!!!!!!!!!!!!!!!!!!! " << i << endl;
 			cerr << "ERROR: failed during instructon translation." << endl;
