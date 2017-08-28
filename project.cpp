@@ -1458,7 +1458,7 @@ void commit_translated_routines()
 	for (int i=0; i < translated_rtn_num; i++) {
 
 		//replace function by new function in tc
-		cerr << "translated_rtn[i].instr_map_entry "<< dec << translated_rtn[i].instr_map_entry << endl;
+		//cerr << "translated_rtn[i].instr_map_entry "<< dec << translated_rtn[i].instr_map_entry << endl;
 		if (translated_rtn[i].instr_map_entry < 0)
 			continue;
 				    
