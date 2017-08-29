@@ -3,7 +3,7 @@
 
 	push %rdi
 	push %rsi
-	#push %rdx
+	push %rdx
 	
 	mov $1, %rdi #repair 
 	mov $2, %rsi
@@ -38,7 +38,7 @@ lbl:	call lbl	# TODO: fix me to go to the C function
 	pop    %rax
 	leave		# clear stack frame
 	
-	#pop %rdx
+	pop %rdx
 	pop %rsi
 	pop %rdi
 

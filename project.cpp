@@ -943,7 +943,8 @@ return -1;
 return new_size;
 }
 
-
+#define CALL_INST 16
+#define TOTAL_NUM_OF_INST 30
 
 
 /*****************************************/
@@ -962,7 +963,7 @@ debug_cnt++;//TODO: debug
 	int offset = 0;
 	
 
-	for(unsigned int i=0; i<30; i++){ //TODO: check how many instr in the file
+	for(unsigned int i=0; i<TOTAL_NUM_OF_INST; i++){ //TODO: check how many instr in the file
 		//cerr << "We are on:  " << std::dec<< i << endl;
 		xed_decoded_inst_zero_set_mode(&xedd,&dstate); 
 
@@ -978,7 +979,7 @@ debug_cnt++;//TODO: debug
 			//instr_map[num_of_instr_map_entries].new_ins_addr;
 		}*/
 		
-		if(i==16){ //call lbl
+		if(i==CALL_INST){ //call lbl
 			//cerr << "Function address   " << func_addr << endl;
 			rc = create_call_xed(&xedd, 0);
 			if(rc == -1){
@@ -1000,7 +1001,7 @@ debug_cnt++;//TODO: debug
 		xed_uint_t size_inst = xed_decoded_inst_get_length(&xedd);
 		rc = add_new_instr_entry(&xedd, tc_cursor, size_inst);
 		
-		if (i==16)
+		if (i==CALL_INST)
 		{
 			instr_map[num_of_instr_map_entries-1].orig_targ_addr  = func_addr;
 		}
