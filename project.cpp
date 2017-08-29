@@ -985,17 +985,6 @@ debug_cnt++;//TODO: debug
 				cerr<< "ERROR: create calll xed" << endl;
 				return -1;
 			}
-			xed_uint_t size_inst = xed_decoded_inst_get_length(&xedd);
-			rc = add_new_instr_entry(&xedd, tc_cursor, size_inst);
-			if (rc < 0) {
-				//cerr<< "!!!!!!!!!!!!!!!!!!! " << i << endl;
-				cerr << "ERROR: failed during instructon translation." << endl;
-				//RTN_Close( rtn );
-				return 1;
-			}	
-			instr_map[num_of_instr_map_entries-1].orig_targ_addr  = func_addr; //changed to direct adress 
-			offset+=rc;
-			continue;
 		}
 		else
 		{
@@ -1010,6 +999,11 @@ debug_cnt++;//TODO: debug
 		// Add instr into instr map:
 		xed_uint_t size_inst = xed_decoded_inst_get_length(&xedd);
 		rc = add_new_instr_entry(&xedd, tc_cursor, size_inst);
+		
+		if (i==16)
+		{
+			instr_map[num_of_instr_map_entries-1].orig_targ_addr  = func_addr;
+		}
 		if (rc < 0) {
 			//cerr<< "!!!!!!!!!!!!!!!!!!! " << i << endl;
 			cerr << "ERROR: failed during instructon translation." << endl;
