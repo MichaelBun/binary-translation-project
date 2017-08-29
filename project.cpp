@@ -907,6 +907,44 @@ int fix_instructions_displacements()
  }
 
 
+
+/*****************************************/
+/* create_mov_xed() */
+/*****************************************/
+
+int create_mov_xed(xed_decoded_inst_t *xedd, xed_encoder_operand_t from, xed_encoder_operand_t to) {
+        xed_uint8_t enc_buf2[XED_MAX_INSTRUCTION_BYTES];
+        xed_encoder_instruction_t enc_instr;
+        unsigned int max_size = XED_MAX_INSTRUCTION_BYTES;
+        unsigned int new_size = 0;
+
+        xed_error_enum_t xed_error;
+        xed_inst2(&enc_instr, dstate, XED_ICLASS_MOV, 64, to, from);
+        xed_encoder_request_zero_set_mode(xedd, &dstate);
+        xed_bool_t convert_ok = xed_convert_to_encoder_request(xedd, &enc_instr);
+        if (!convert_ok) {
+                cerr << "conversion to encode request failed" << endl;
+                return -1;
+        }
+        //xed_error = xed_encode (&enc_req, enc_buf2, max_size, &new_size);
+        xed_error = xed_encode(xedd, enc_buf2, max_size, &new_size);
+        if (xed_error != XED_ERROR_NONE) {
+                cout << "if (xed_error != XED_ERROR_NONE)" << endl;
+                cerr << "ENCODE ERROR: " << xed_error_enum_t2str(xed_error) << endl;
+                return -1;
+        }
+        xed_error = xed_decode(xedd, reinterpret_cast<UINT8*>(enc_buf2), max_size);
+
+        if (xed_error != XED_ERROR_NONE) {
+                cerr << "ERROR: xed decode failed for instr" << endl;
+                return -1;
+        }
+        return new_size;
+}
+
+
+
+
 /*****************************************/
 /* create_call_xed() */
 /*****************************************/
@@ -943,8 +981,20 @@ return -1;
 return new_size;
 }
 
+
+
+#define MOV_RDI 6
+#define MOV_RSI 7
+#define MOV_RDX 8
+#define MOV_RCX 9
 #define CALL_INST 17
 #define TOTAL_NUM_OF_INST 30
+
+
+/*****************************************/
+/* insert_call_probed_wrapper() */
+/*****************************************/
+
 
 
 /*****************************************/
@@ -953,7 +1003,7 @@ return new_size;
 int debug_cnt = 0; //TODO: debug
 int debug_cnt_findRtnFor = 0;
 
-int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr){ 
+int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr, INS ins){ 
 debug_cnt++;//TODO: debug
 	xed_decoded_inst_t xedd;
 	xed_error_enum_t xed_code;							
@@ -978,8 +1028,18 @@ debug_cnt++;//TODO: debug
 			}
 			//instr_map[num_of_instr_map_entries].new_ins_addr;
 		}*/
+	/*	if(i==MOV_RDI) {
+			xed_encoder_operand_t from, to;
+			to.reg(XED_REG_RDI);
+			from.imm0(0,INS_Address(ins));
+		}
+		if(i==MOV_RSI) {
+		}
+		if(i==MOV_RDX) {
+		}
+		if(i==MOV_RCX) {
+		}*/
 		
-
 		if(i==CALL_INST){ //call lbl
 
 			//cerr << "Function address   " << func_addr << endl;
