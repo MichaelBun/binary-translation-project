@@ -171,7 +171,7 @@ VOID RecordMemWrite(VOID* ip, ADDRINT addr, ADDRINT null1, ADDRINT null2)
 		cout << "Memory write overflow at address: 0x" << hex << (ADDRINT)ip << dec << endl;
 }
 
-VOID CheckAddIns(ADDRINT regVal, UINT64 immediate, VOID* ip, UINT64 insSize)
+VOID CheckAddIns(VOID* ip, UINT64 insSize, ADDRINT regVal, UINT64 immediate)
 {
 	if (!mallocTracer.IsAllocatedAddress(regVal))
 		return;
@@ -179,20 +179,6 @@ VOID CheckAddIns(ADDRINT regVal, UINT64 immediate, VOID* ip, UINT64 insSize)
 	if (mallocTracer.GetStartAddress(regVal + immediate) != mallocTracer.GetStartAddress(regVal))
 		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
 }
-
-/*void CheckAddIns0(void* ip, INS ins){ //TODO: finish
-	ADDRINT regVal = INS_OperandReg(ins, 0);
-	cerr << regVal << endl;
-	
-	UINT64 immediate = INS_OperandImmediate(ins, 0);
-	cerr << immediate << endl;
-	
-	UINT64 size = INS_Size(ins);
-	cerr<< size<< endl;
-}*/
-
-
-
 
 
 bool INS_IsAdd(INS ins)
@@ -204,7 +190,7 @@ bool INS_IsAdd(INS ins)
 	return false;
 }
 
-VOID CheckAddInsIndexReg(ADDRINT regVal, ADDRINT indexRegVal, VOID* ip, UINT64 insSize)
+VOID CheckAddInsIndexReg(VOID* ip,  UINT64 insSize, ADDRINT regVal, ADDRINT indexRegVal)
 {
 	if (!mallocTracer.IsAllocatedAddress(regVal))
 		return;
@@ -312,6 +298,17 @@ int translated_rtn_num = 0;
 // commit/uncommit thread-related variables:
 volatile bool enable_commit_uncommit_flag = false;
 
+enum analysis_func_type {MemRead =0, MemWrite, AddInsIndexReg, AddIns};
+typedef struct{
+	ADDRINT ip;
+	UINT64 size_or_address;
+	string operand_reg;
+	union parameter {
+		string index_reg;  //for CheckAddInsIndexReg
+		UINT64 immediate; // CheckAddIns
+	} p;
+	analysis_func_type type;
+} parameters_to_wrapper_probed
 
 /* ============================================================= */
 /* Service dump routines                                         */
@@ -1003,7 +1000,7 @@ return new_size;
 int debug_cnt = 0; //TODO: debug
 int debug_cnt_findRtnFor = 0;
 
-int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr, INS ins){ 
+int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr, parameters_to_wrapper_probed param){ 
 debug_cnt++;//TODO: debug
 	xed_decoded_inst_t xedd;
 	xed_error_enum_t xed_code;							
@@ -1019,26 +1016,54 @@ debug_cnt++;//TODO: debug
 
 		ADDRINT addr  = mmap_addr + offset; //offset is defined by rc
 		
-		/*if(i==4){ //marker
-			rc = create_call_xed(&xedd,0);
-			cerr << "This is the rc:    " << rc << endl;
-			if(rc == -1){
-				cerr<< "ERROR: create calll xed" << endl;
-				return -1;
-			}
-			//instr_map[num_of_instr_map_entries].new_ins_addr;
-		}*/
-	/*	if(i==MOV_RDI) {
+		if(i==MOV_RDI) { // ip
 			xed_encoder_operand_t from, to;
-			to.reg(XED_REG_RDI);
-			from.imm0(0,INS_Address(ins));
+			to.u.reg=XED_REG_RDI;
+		//	from.imm0(0,INS_Address(ins));
+			from.u.imm0 = param.ip;
+			
+			create_call_xed(&xedd, from, to);
 		}
-		if(i==MOV_RSI) {
+		if(i==MOV_RSI) { //inst address / inst size
+			xed_encoder_operand_t from, to;
+			to.u.reg = XED_REG_RSI;
+			from.u.imm0 = param.size_or_address;
+			
+			create_call_xed(&xedd, from, to);
+			
 		}
-		if(i==MOV_RDX) {
+		if(i==MOV_RDX) { //reg
+			xed_encoder_operand_t from, to;
+			to.u.reg = XED_REG_RDX;
+			from.u.reg = str2xed_reg_enum_t(param.operand_reg);
+			
+			if(param.type == AddIns || param.type == AddInsIndexReg){
+			}
+			else{
+				from.u.reg = XED_REG_INVALID;
+			}
+			
+			create_call_xed(&xedd, from, to);
+			
 		}
-		if(i==MOV_RCX) {
-		}*/
+		if(i==MOV_RCX) {//immidiate /index reg val
+			xed_encoder_operand_t from, to;
+			to.u.reg = XED_REG_RCX;
+			if(param.type == AddInsIndexReg){
+				from.u.reg = str2xed_reg_enum_t(param.p.index_reg);
+			}
+			
+			else if(param.type == AddIns){
+				from.u.imm0 = param.p.immediate;
+			}
+			
+			else{
+				from.u.reg = XED_REG_INVALID;
+			}
+			
+			create_call_xed(&xedd, from, to);
+			
+		}
 		
 		if(i==CALL_INST){ //call lbl
 

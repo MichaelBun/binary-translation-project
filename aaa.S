@@ -4,10 +4,8 @@
 	push %rdi
 	push %rsi
 	push %rdx
-<<<<<<< HEAD
-=======
 	push %rcx
->>>>>>> 338fcea6f20096d62e0a5e1dd887b5524012c026
+
 	
 	mov $1, %rdi #repair 
 	mov $2, %rsi
@@ -31,10 +29,8 @@ lbl:	call lbl	# TODO: fix me to go to the C function
 	pop    %rax
 	leave		# clear stack frame
 	
-<<<<<<< HEAD
-=======
+
 	pop %rcx
->>>>>>> 338fcea6f20096d62e0a5e1dd887b5524012c026
 	pop %rdx
 	pop %rsi
 	pop %rdi
