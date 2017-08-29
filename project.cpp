@@ -149,7 +149,7 @@ VOID mainAfter()
 }
 
 // Print a memory read record
-VOID RecordMemRead(VOID * ip, ADDRINT addr)
+VOID RecordMemRead(VOID * ip, ADDRINT addr, ADDRINT null1, ADDRINT null2)
 {
 
 	cerr << "TEST " << endl; //debug
@@ -162,7 +162,7 @@ VOID RecordMemRead(VOID * ip, ADDRINT addr)
 }
 
 // Print a memory write record
-VOID RecordMemWrite(VOID* ip, ADDRINT addr)
+VOID RecordMemWrite(VOID* ip, ADDRINT addr, ADDRINT null1, ADDRINT null2)
 {
 	if (!IsCalledAfterMain())
 		return;
@@ -180,7 +180,7 @@ VOID CheckAddIns(ADDRINT regVal, UINT64 immediate, VOID* ip, UINT64 insSize)
 		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
 }
 
-void CheckAddIns0(void* ip, INS ins){ //TODO: finish
+/*void CheckAddIns0(void* ip, INS ins){ //TODO: finish
 	ADDRINT regVal = INS_OperandReg(ins, 0);
 	cerr << regVal << endl;
 	
@@ -189,7 +189,7 @@ void CheckAddIns0(void* ip, INS ins){ //TODO: finish
 	
 	UINT64 size = INS_Size(ins);
 	cerr<< size<< endl;
-}
+}*/
 
 
 
@@ -943,7 +943,7 @@ return -1;
 return new_size;
 }
 
-#define CALL_INST 16
+#define CALL_INST 17
 #define TOTAL_NUM_OF_INST 30
 
 
@@ -979,7 +979,9 @@ debug_cnt++;//TODO: debug
 			//instr_map[num_of_instr_map_entries].new_ins_addr;
 		}*/
 		
+
 		if(i==CALL_INST){ //call lbl
+
 			//cerr << "Function address   " << func_addr << endl;
 			rc = create_call_xed(&xedd, 0);
 			if(rc == -1){
@@ -1002,6 +1004,7 @@ debug_cnt++;//TODO: debug
 		rc = add_new_instr_entry(&xedd, tc_cursor, size_inst);
 		
 		if (i==CALL_INST)
+
 		{
 			instr_map[num_of_instr_map_entries-1].orig_targ_addr  = func_addr;
 		}
