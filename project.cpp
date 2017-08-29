@@ -978,14 +978,24 @@ debug_cnt++;//TODO: debug
 			//instr_map[num_of_instr_map_entries].new_ins_addr;
 		}*/
 		
-		if(i==16){ //call lbl. TODO: check
+		if(i==16){ //call lbl
 			//cerr << "Function address   " << func_addr << endl;
-			rc = create_call_xed(&xedd,func_addr);
+			rc = create_call_xed(&xedd, 0);
 			if(rc == -1){
 				cerr<< "ERROR: create calll xed" << endl;
 				return -1;
 			}
-			//continue;
+			xed_uint_t size_inst = xed_decoded_inst_get_length(&xedd);
+			rc = add_new_instr_entry(&xedd, tc_cursor, size_inst);
+			if (rc < 0) {
+				//cerr<< "!!!!!!!!!!!!!!!!!!! " << i << endl;
+				cerr << "ERROR: failed during instructon translation." << endl;
+				//RTN_Close( rtn );
+				return 1;
+			}	
+			instr_map[num_of_instr_map_entries-1].orig_targ_addr  = func_addr; //changed to direct adress 
+			offset+=rc;
+			continue;
 		}
 		else
 		{
@@ -1009,6 +1019,8 @@ debug_cnt++;//TODO: debug
 		}	
 		offset+=rc;
 	}//for
+	
+	
 	return 0;
 }
 
@@ -1233,8 +1245,9 @@ int find_candidate_rtns_for_translation(IMG img)
 
 				// Add instr into instr map:
 				rc = add_new_instr_entry(&xedd, INS_Address(ins), INS_Size(ins));
+				
 				if (rc < 0) {
-					cerr << "1111111111111111111111111111" << endl;
+					//cerr << "1111111111111111111111111111" << endl;
 					cerr << "ERROR: failed during instructon translation." << endl;
 					RTN_Close( rtn );
 					return 1;
