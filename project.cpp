@@ -990,8 +990,8 @@ return new_size;
 #define MOV_RSI 7
 #define MOV_RDX 8
 #define MOV_RCX 9
-#define CALL_INST 17
-#define TOTAL_NUM_OF_INST 33
+#define CALL_INST 20
+#define TOTAL_NUM_OF_INST 35
 
 
 /*****************************************/
@@ -1018,7 +1018,6 @@ debug_cnt++;//TODO: debug
 		xed_decoded_inst_zero_set_mode(&xedd,&dstate); 
 
 		ADDRINT addr  = mmap_addr + offset; //offset is defined by rc
-		
 		if(i==MOV_RDI) { // ip
 			to = xed_reg(XED_REG_RDI);
 			//to.type = XED_ENCODER_OPERAND_TYPE_REG;
@@ -1291,6 +1290,7 @@ int find_candidate_rtns_for_translation(IMG img)
 							par.index_reg = xed_exact_map_from_pin_reg(indexReg);
 							par.type = AddInsIndexReg;
 							cerr << REG_StringShort(operandReg) << "                   " << "            " << xed_exact_map_from_pin_reg(operandReg)<< endl;
+							cerr << REG_StringShort(indexReg) << endl;
 							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr, par);
 							break;
 						}
