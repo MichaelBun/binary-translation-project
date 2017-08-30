@@ -176,7 +176,11 @@ VOID RecordMemWrite(VOID* ip, ADDRINT addr)
 		cout << "Memory write overflow at address: 0x" << hex << (ADDRINT)ip << dec << endl;
 }
 
+<<<<<<< HEAD
 /*VOID CheckAddIns(ADDRINT regVal, UINT64 immediate, VOID* ip, UINT64 insSize)
+=======
+VOID CheckAddIns(VOID* ip, UINT64 insSize, ADDRINT regVal, UINT64 immediate)
+>>>>>>> 625f6be2df577a2511f7bc186d674ad5eabaa712
 {
 	if (!mallocTracer.IsAllocatedAddress(regVal))
 		return;
@@ -191,6 +195,7 @@ VOID RecordMemWrite(VOID* ip, ADDRINT addr)
 	xed_decoded_inst_t xedd;
 	xed_error_enum_t xed_code = xed_decode(&xedd, reinterpret_cast<UINT8*>(addr), max_inst_len);
 
+<<<<<<< HEAD
 	if (xed_code != XED_ERROR_NONE) {
 		cerr << "ERROR: xed decode failed for instr at: " << "0x" << hex << addr << endl;
 		//RTN_Close( rtn );
@@ -213,6 +218,8 @@ VOID CheckAddIns(ADDRINT* ip, ADDRINT addr)
 		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
 }
 
+=======
+>>>>>>> 625f6be2df577a2511f7bc186d674ad5eabaa712
 
 bool INS_IsAdd(INS ins)
 {
@@ -223,7 +230,11 @@ bool INS_IsAdd(INS ins)
 	return false;
 }
 
+<<<<<<< HEAD
 /*VOID CheckAddInsindexRegVal(ADDRINT regVal, ADDRINT indexRegValVal, VOID* ip, UINT64 insSize)
+=======
+VOID CheckAddInsIndexReg(VOID* ip,  UINT64 insSize, ADDRINT regVal, ADDRINT indexRegVal)
+>>>>>>> 625f6be2df577a2511f7bc186d674ad5eabaa712
 {
 	if (!mallocTracer.IsAllocatedAddress(regVal))
 		return;
@@ -340,6 +351,17 @@ int translated_rtn_num = 0;
 // commit/uncommit thread-related variables:
 volatile bool enable_commit_uncommit_flag = false;
 
+enum analysis_func_type {MemRead =0, MemWrite, AddInsIndexReg, AddIns};
+
+typedef struct _parameters_to_wrapper_probed{
+	ADDRINT ip;
+	UINT64 size_or_address;
+	string operand_reg;
+	string index_reg;  //for CheckAddInsIndexReg
+	UINT64 immediate; // CheckAddIns
+
+	analysis_func_type type;
+} parameters_to_wrapper_probed;
 
 /* ============================================================= */
 /* Service dump routines                                         */
@@ -935,6 +957,44 @@ int fix_instructions_displacements()
  }
 
 
+
+/*****************************************/
+/* create_mov_xed() */
+/*****************************************/
+
+int create_mov_xed(xed_decoded_inst_t *xedd, xed_encoder_operand_t from, xed_encoder_operand_t to) {
+        xed_uint8_t enc_buf2[XED_MAX_INSTRUCTION_BYTES];
+        xed_encoder_instruction_t enc_instr;
+        unsigned int max_size = XED_MAX_INSTRUCTION_BYTES;
+        unsigned int new_size = 0;
+
+        xed_error_enum_t xed_error;
+        xed_inst2(&enc_instr, dstate, XED_ICLASS_MOV, 64, to, from);
+        xed_encoder_request_zero_set_mode(xedd, &dstate);
+        xed_bool_t convert_ok = xed_convert_to_encoder_request(xedd, &enc_instr);
+        if (!convert_ok) {
+                cerr << "conversion to encode request failed" << endl;
+                return -1;
+        }
+        //xed_error = xed_encode (&enc_req, enc_buf2, max_size, &new_size);
+        xed_error = xed_encode(xedd, enc_buf2, max_size, &new_size);
+        if (xed_error != XED_ERROR_NONE) {
+                cout << "if (xed_error != XED_ERROR_NONE)" << endl;
+                cerr << "ENCODE ERROR: " << xed_error_enum_t2str(xed_error) << endl;
+                return -1;
+        }
+        xed_error = xed_decode(xedd, reinterpret_cast<UINT8*>(enc_buf2), max_size);
+
+        if (xed_error != XED_ERROR_NONE) {
+                cerr << "ERROR: xed decode failed for instr" << endl;
+                return -1;
+        }
+        return new_size;
+}
+
+
+
+
 /*****************************************/
 /* create_call_xed() */
 /*****************************************/
@@ -973,6 +1033,19 @@ return new_size;
 
 
 
+#define MOV_RDI 6
+#define MOV_RSI 7
+#define MOV_RDX 8
+#define MOV_RCX 9
+#define CALL_INST 17
+#define TOTAL_NUM_OF_INST 30
+
+
+/*****************************************/
+/* insert_call_probed_wrapper() */
+/*****************************************/
+
+
 
 /*****************************************/
 /* insert_call_probed_wrapper() */
@@ -980,7 +1053,7 @@ return new_size;
 int debug_cnt = 0; //TODO: debug
 int debug_cnt_findRtnFor = 0;
 
-int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr){ 
+int insert_call_probed_wrapper(ADDRINT func_addr, ADDRINT mmap_addr, parameters_to_wrapper_probed param){ 
 debug_cnt++;//TODO: debug
 	xed_decoded_inst_t xedd;
 	xed_error_enum_t xed_code;							
@@ -990,23 +1063,68 @@ debug_cnt++;//TODO: debug
 	int offset = 0;
 	
 
-	for(unsigned int i=0; i<30; i++){ //TODO: check how many instr in the file
+	for(unsigned int i=0; i<TOTAL_NUM_OF_INST; i++){ //TODO: check how many instr in the file
 		//cerr << "We are on:  " << std::dec<< i << endl;
 		xed_decoded_inst_zero_set_mode(&xedd,&dstate); 
 
 		ADDRINT addr  = mmap_addr + offset; //offset is defined by rc
 		
-		/*if(i==4){ //marker
-			rc = create_call_xed(&xedd,0);
-			cerr << "This is the rc:    " << rc << endl;
-			if(rc == -1){
-				cerr<< "ERROR: create calll xed" << endl;
-				return -1;
+		if(i==MOV_RDI) { // ip
+			xed_encoder_operand_t from, to;
+			to.u.reg=XED_REG_RDI;
+		//	from.imm0(0,INS_Address(ins));
+			from.u.imm0 = param.ip;
+			
+			create_mov_xed(&xedd, from, to);
+		}
+		if(i==MOV_RSI) { //inst address / inst size
+			xed_encoder_operand_t from, to;
+			to.u.reg = XED_REG_RSI;
+			from.u.imm0 = param.size_or_address;
+			
+			create_mov_xed(&xedd, from, to);
+			
+		}
+		if(i==MOV_RDX) { //reg
+			xed_encoder_operand_t from, to;
+			to.u.reg = XED_REG_RDX;
+			//cerr << param.operand_reg << endl;
+			from.u.reg = str2xed_reg_enum_t(param.operand_reg.c_str());
+			
+			if(param.type == AddIns || param.type == AddInsIndexReg){
 			}
-			//instr_map[num_of_instr_map_entries].new_ins_addr;
-		}*/
+			else{
+				from.u.reg = XED_REG_INVALID;
+			}
+			
+			create_mov_xed(&xedd, from, to);
+			
+		}
+		if(i==MOV_RCX) {//immidiate /index reg val
+			xed_encoder_operand_t from, to;
+			to.u.reg = XED_REG_RCX;
+			if(param.type == AddInsIndexReg){
+				from.u.reg = str2xed_reg_enum_t(param.index_reg.c_str());
+			}
+			
+			else if(param.type == AddIns){
+				from.u.imm0 = param.immediate;
+			}
+			
+			else{
+				from.u.reg = XED_REG_INVALID;
+			}
+			
+			create_mov_xed(&xedd, from, to);
+			
+		}
 		
+<<<<<<< HEAD
 		if(i==16){ //call lbl
+=======
+		if(i==CALL_INST){ //call lbl
+
+>>>>>>> 625f6be2df577a2511f7bc186d674ad5eabaa712
 			//cerr << "Function address   " << func_addr << endl;
 			rc = create_call_xed(&xedd, 0);
 			if(rc == -1){
@@ -1028,7 +1146,8 @@ debug_cnt++;//TODO: debug
 		xed_uint_t size_inst = xed_decoded_inst_get_length(&xedd);
 		rc = add_new_instr_entry(&xedd, tc_cursor, size_inst);
 		
-		if (i==17)
+		if (i==CALL_INST)
+
 		{
 			instr_map[num_of_instr_map_entries-1].orig_targ_addr  = func_addr;
 		}
@@ -1118,9 +1237,15 @@ int find_candidate_rtns_for_translation(IMG img)
 				{
 					
 					UINT32 opNum = INS_OperandCount(ins);
+<<<<<<< HEAD
 					immediate = 0;  /*for compile testing*/
 					REG regVal = REG_INVALID();
 					REG indexRegVal = REG_INVALID();
+=======
+					UINT64 immediate = 0;  /*for compile testing*/
+					REG operandReg = REG_INVALID();
+					REG indexReg = REG_INVALID();
+>>>>>>> 625f6be2df577a2511f7bc186d674ad5eabaa712
 					bool foundReg = false;
 					bool foundindexRegVal = false;
 					bool foundImm = false;
@@ -1158,7 +1283,16 @@ int find_candidate_rtns_for_translation(IMG img)
 							insSize = INS_Size(ins);
 							ADDRINT *ptr = (ADDRINT *)&CheckAddIns;
 							ADDRINT func_address = (ADDRINT)ptr;
-							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							parameters_to_wrapper_probed par;
+							par.ip = INS_Address(ins);
+							par.size_or_address =  INS_Size(ins);
+							par.operand_reg = REG_StringShort(operandReg);
+							//LEVEL_CORE::xed_exact_map_from_pin_reg(operandReg);
+							//using namespace LEVEL_CORE;
+						    cerr << (ADDRINT)operandReg << "                   " << xed_reg_to_pin_reg(XED_REG_RSP) << "                " << XED_REG_RSP   <<endl; //<< str2xed_reg_enum_t(par.operand_reg.c_str()) << endl;
+							par.immediate = immediate;
+							par.type = AddIns;
+							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr, par);
 							break;
 							
 						}
@@ -1175,7 +1309,13 @@ int find_candidate_rtns_for_translation(IMG img)
 							insSize = INS_Size(ins);
 							ADDRINT *ptr = (ADDRINT *)&CheckAddInsindexRegVal;
 							ADDRINT func_address = (ADDRINT)ptr;
-							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							parameters_to_wrapper_probed par;
+							par.ip = INS_Address(ins);
+							par.size_or_address =  INS_Size(ins);
+							par.operand_reg = REG_StringShort(operandReg);
+							par.index_reg = REG_StringShort(indexReg);
+							par.type = AddInsIndexReg;
+							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr, par);
 							break;
 						}
 					}
@@ -1201,7 +1341,11 @@ int find_candidate_rtns_for_translation(IMG img)
 							
 							ADDRINT *ptr = (ADDRINT *)&RecordMemRead;
 							ADDRINT func_address = (ADDRINT)ptr;
-							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							parameters_to_wrapper_probed par;
+							par.ip = INS_Address(ins);
+							par.size_or_address = INS_Address(ins) + INS_MemoryOperandSize(ins,memOp);
+							par.type = MemRead;
+							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr, par);
 						}
 						// Note that in some architectures a single memory operand can be 
 						// both read and written (for instance incl (%eax) on IA-32)
@@ -1220,7 +1364,11 @@ int find_candidate_rtns_for_translation(IMG img)
 							
 							ADDRINT *ptr = (ADDRINT *)&RecordMemWrite;
 							ADDRINT func_address = (ADDRINT)ptr;
-							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							parameters_to_wrapper_probed par;
+							par.ip = INS_Address(ins);
+							par.size_or_address = INS_Address(ins) + INS_MemoryOperandSize(ins,memOp);
+							par.type = MemWrite;
+							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr,par);
 						}
 					}
 				}
