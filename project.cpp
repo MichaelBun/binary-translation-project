@@ -299,16 +299,16 @@ int translated_rtn_num = 0;
 volatile bool enable_commit_uncommit_flag = false;
 
 enum analysis_func_type {MemRead =0, MemWrite, AddInsIndexReg, AddIns};
-typedef struct{
+
+typedef struct _parameters_to_wrapper_probed{
 	ADDRINT ip;
 	UINT64 size_or_address;
 	string operand_reg;
-	union parameter {
-		string index_reg;  //for CheckAddInsIndexReg
-		UINT64 immediate; // CheckAddIns
-	} p;
+	string index_reg;  //for CheckAddInsIndexReg
+	UINT64 immediate; // CheckAddIns
+
 	analysis_func_type type;
-} parameters_to_wrapper_probed
+} parameters_to_wrapper_probed;
 
 /* ============================================================= */
 /* Service dump routines                                         */
@@ -1022,20 +1022,20 @@ debug_cnt++;//TODO: debug
 		//	from.imm0(0,INS_Address(ins));
 			from.u.imm0 = param.ip;
 			
-			create_call_xed(&xedd, from, to);
+			create_mov_xed(&xedd, from, to);
 		}
 		if(i==MOV_RSI) { //inst address / inst size
 			xed_encoder_operand_t from, to;
 			to.u.reg = XED_REG_RSI;
 			from.u.imm0 = param.size_or_address;
 			
-			create_call_xed(&xedd, from, to);
+			create_mov_xed(&xedd, from, to);
 			
 		}
 		if(i==MOV_RDX) { //reg
 			xed_encoder_operand_t from, to;
 			to.u.reg = XED_REG_RDX;
-			from.u.reg = str2xed_reg_enum_t(param.operand_reg);
+			from.u.reg = str2xed_reg_enum_t(param.operand_reg.c_str());
 			
 			if(param.type == AddIns || param.type == AddInsIndexReg){
 			}
@@ -1043,25 +1043,25 @@ debug_cnt++;//TODO: debug
 				from.u.reg = XED_REG_INVALID;
 			}
 			
-			create_call_xed(&xedd, from, to);
+			create_mov_xed(&xedd, from, to);
 			
 		}
 		if(i==MOV_RCX) {//immidiate /index reg val
 			xed_encoder_operand_t from, to;
 			to.u.reg = XED_REG_RCX;
 			if(param.type == AddInsIndexReg){
-				from.u.reg = str2xed_reg_enum_t(param.p.index_reg);
+				from.u.reg = str2xed_reg_enum_t(param.index_reg.c_str());
 			}
 			
 			else if(param.type == AddIns){
-				from.u.imm0 = param.p.immediate;
+				from.u.imm0 = param.immediate;
 			}
 			
 			else{
 				from.u.reg = XED_REG_INVALID;
 			}
 			
-			create_call_xed(&xedd, from, to);
+			create_mov_xed(&xedd, from, to);
 			
 		}
 		
@@ -1179,7 +1179,7 @@ int find_candidate_rtns_for_translation(IMG img)
 				{
 					
 					UINT32 opNum = INS_OperandCount(ins);
-					//UINT64 immediate = 0;  /*for compile testing*/
+					UINT64 immediate = 0;  /*for compile testing*/
 					REG operandReg = REG_INVALID();
 					REG indexReg = REG_INVALID();
 					bool foundReg = false;
@@ -1190,7 +1190,7 @@ int find_candidate_rtns_for_translation(IMG img)
 					{
 						if (!foundImm && INS_OperandIsImmediate(ins, i))
 						{
-							//immediate = INS_OperandImmediate(ins, i); /*for compile testing*/
+							immediate = INS_OperandImmediate(ins, i); /*for compile testing*/
 							foundImm = true;
 						}
 
@@ -1218,7 +1218,13 @@ int find_candidate_rtns_for_translation(IMG img)
 							//Replace with probed
 							ADDRINT *ptr = (ADDRINT *)&CheckAddIns;
 							ADDRINT func_address = (ADDRINT)ptr;
-							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							parameters_to_wrapper_probed par;
+							par.ip = INS_Address(ins);
+							par.size_or_address =  INS_Size(ins);
+							par.operand_reg = REG_StringShort(operandReg);
+							par.immediate = immediate;
+							par.type = AddIns;
+							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr, par);
 							break;
 							
 						}
@@ -1235,7 +1241,13 @@ int find_candidate_rtns_for_translation(IMG img)
 							
 							ADDRINT *ptr = (ADDRINT *)&CheckAddInsIndexReg;
 							ADDRINT func_address = (ADDRINT)ptr;
-							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							parameters_to_wrapper_probed par;
+							par.ip = INS_Address(ins);
+							par.size_or_address =  INS_Size(ins);
+							par.operand_reg = REG_StringShort(operandReg);
+							par.index_reg = REG_StringShort(indexReg);
+							par.type = AddInsIndexReg;
+							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr, par);
 							break;
 						}
 					}
@@ -1261,7 +1273,11 @@ int find_candidate_rtns_for_translation(IMG img)
 							
 							ADDRINT *ptr = (ADDRINT *)&RecordMemRead;
 							ADDRINT func_address = (ADDRINT)ptr;
-							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							parameters_to_wrapper_probed par;
+							par.ip = INS_Address(ins);
+							par.size_or_address = INS_Address(ins) + INS_MemoryOperandSize(ins,memOp);
+							par.type = MemRead;
+							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr, par);
 						}
 						// Note that in some architectures a single memory operand can be 
 						// both read and written (for instance incl (%eax) on IA-32)
@@ -1280,7 +1296,11 @@ int find_candidate_rtns_for_translation(IMG img)
 							
 							ADDRINT *ptr = (ADDRINT *)&RecordMemWrite;
 							ADDRINT func_address = (ADDRINT)ptr;
-							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
+							parameters_to_wrapper_probed par;
+							par.ip = INS_Address(ins);
+							par.size_or_address = INS_Address(ins) + INS_MemoryOperandSize(ins,memOp);
+							par.type = MemWrite;
+							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr,par);
 						}
 					}
 				}
