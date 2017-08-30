@@ -176,50 +176,6 @@ VOID RecordMemWrite(VOID* ip, ADDRINT addr)
 		cout << "Memory write overflow at address: 0x" << hex << (ADDRINT)ip << dec << endl;
 }
 
-<<<<<<< HEAD
-/*VOID CheckAddIns(ADDRINT regVal, UINT64 immediate, VOID* ip, UINT64 insSize)
-=======
-VOID CheckAddIns(VOID* ip, UINT64 insSize, ADDRINT regVal, UINT64 immediate)
->>>>>>> 625f6be2df577a2511f7bc186d674ad5eabaa712
-{
-	if (!mallocTracer.IsAllocatedAddress(regVal))
-		return;
-
-	if (mallocTracer.GetStartAddress(regVal + immediate) != mallocTracer.GetStartAddress(regVal))
-		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
-}*/
-
-
-/*VOID CheckAddIns0(ADDRINT* ip, ADDRINT addr)
-{
-	xed_decoded_inst_t xedd;
-	xed_error_enum_t xed_code = xed_decode(&xedd, reinterpret_cast<UINT8*>(addr), max_inst_len);
-
-<<<<<<< HEAD
-	if (xed_code != XED_ERROR_NONE) {
-		cerr << "ERROR: xed decode failed for instr at: " << "0x" << hex << addr << endl;
-		//RTN_Close( rtn );
-		return;
-	}
-	  xed_decoded_inst_zero_set_mode(&xedd,&dstate);  
-	// Add instr into instr map:
-	xed_uint_t size_inst = xed_decoded_inst_get_length(&xedd);
-	UINT64 insSize = (UINT64)size_inst;
-	
-	
-}*/
-
-VOID CheckAddIns(ADDRINT* ip, ADDRINT addr)
-{
-	if (!mallocTracer.IsAllocatedAddress(regVal))
-		return;
-
-	if (mallocTracer.GetStartAddress(regVal + immediate) != mallocTracer.GetStartAddress(regVal))
-		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
-}
-
-=======
->>>>>>> 625f6be2df577a2511f7bc186d674ad5eabaa712
 
 bool INS_IsAdd(INS ins)
 {
@@ -230,18 +186,6 @@ bool INS_IsAdd(INS ins)
 	return false;
 }
 
-<<<<<<< HEAD
-/*VOID CheckAddInsindexRegVal(ADDRINT regVal, ADDRINT indexRegValVal, VOID* ip, UINT64 insSize)
-=======
-VOID CheckAddInsIndexReg(VOID* ip,  UINT64 insSize, ADDRINT regVal, ADDRINT indexRegVal)
->>>>>>> 625f6be2df577a2511f7bc186d674ad5eabaa712
-{
-	if (!mallocTracer.IsAllocatedAddress(regVal))
-		return;
-		
-	if (mallocTracer.GetStartAddress(regVal + indexRegValVal) != mallocTracer.GetStartAddress(regVal))
-		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
-}*/
 
 VOID CheckAddInsindexRegVal(ADDRINT* ip, ADDRINT addr)
 {
@@ -1119,12 +1063,7 @@ debug_cnt++;//TODO: debug
 			
 		}
 		
-<<<<<<< HEAD
-		if(i==16){ //call lbl
-=======
 		if(i==CALL_INST){ //call lbl
-
->>>>>>> 625f6be2df577a2511f7bc186d674ad5eabaa712
 			//cerr << "Function address   " << func_addr << endl;
 			rc = create_call_xed(&xedd, 0);
 			if(rc == -1){
@@ -1237,15 +1176,9 @@ int find_candidate_rtns_for_translation(IMG img)
 				{
 					
 					UINT32 opNum = INS_OperandCount(ins);
-<<<<<<< HEAD
-					immediate = 0;  /*for compile testing*/
-					REG regVal = REG_INVALID();
-					REG indexRegVal = REG_INVALID();
-=======
 					UINT64 immediate = 0;  /*for compile testing*/
 					REG operandReg = REG_INVALID();
 					REG indexReg = REG_INVALID();
->>>>>>> 625f6be2df577a2511f7bc186d674ad5eabaa712
 					bool foundReg = false;
 					bool foundindexRegVal = false;
 					bool foundImm = false;
