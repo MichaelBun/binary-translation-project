@@ -1035,6 +1035,7 @@ debug_cnt++;//TODO: debug
 		if(i==MOV_RDX) { //reg
 			xed_encoder_operand_t from, to;
 			to.u.reg = XED_REG_RDX;
+			//cerr << param.operand_reg << endl;
 			from.u.reg = str2xed_reg_enum_t(param.operand_reg.c_str());
 			
 			if(param.type == AddIns || param.type == AddInsIndexReg){
@@ -1222,6 +1223,9 @@ int find_candidate_rtns_for_translation(IMG img)
 							par.ip = INS_Address(ins);
 							par.size_or_address =  INS_Size(ins);
 							par.operand_reg = REG_StringShort(operandReg);
+							//LEVEL_CORE::xed_exact_map_from_pin_reg(operandReg);
+							//using namespace LEVEL_CORE;
+						    cerr << (ADDRINT)operandReg << "                   " << xed_reg_to_pin_reg(XED_REG_RSP) << "                " << XED_REG_RSP   <<endl; //<< str2xed_reg_enum_t(par.operand_reg.c_str()) << endl;
 							par.immediate = immediate;
 							par.type = AddIns;
 							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr, par);
