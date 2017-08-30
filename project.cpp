@@ -187,12 +187,21 @@ bool INS_IsAdd(INS ins)
 }
 
 
-VOID CheckAddInsindexRegVal(ADDRINT* ip, ADDRINT addr)
+VOID CheckAddInsIndexReg(VOID* ip,  UINT64 insSize, ADDRINT regVal, ADDRINT indexRegVal)
 {
 	if (!mallocTracer.IsAllocatedAddress(regVal))
 		return;
 		
-	if (mallocTracer.GetStartAddress(regVal + indexRegValVal) != mallocTracer.GetStartAddress(regVal))
+	if (mallocTracer.GetStartAddress(regVal + indexRegVal) != mallocTracer.GetStartAddress(regVal))
+		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
+}
+
+VOID CheckAddIns(VOID* ip, UINT64 insSize, ADDRINT regVal, UINT64 immediate)
+{
+	if (!mallocTracer.IsAllocatedAddress(regVal))
+		return;
+
+	if (mallocTracer.GetStartAddress(regVal + immediate) != mallocTracer.GetStartAddress(regVal))
 		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
 }
 
@@ -300,8 +309,8 @@ enum analysis_func_type {MemRead =0, MemWrite, AddInsIndexReg, AddIns};
 typedef struct _parameters_to_wrapper_probed{
 	ADDRINT ip;
 	UINT64 size_or_address;
-	string operand_reg;
-	string index_reg;  //for CheckAddInsIndexReg
+	xed_reg_enum_t operand_reg;
+	xed_reg_enum_t index_reg;  //for CheckAddInsIndexReg
 	UINT64 immediate; // CheckAddIns
 
 	analysis_func_type type;
@@ -982,13 +991,7 @@ return new_size;
 #define MOV_RDX 8
 #define MOV_RCX 9
 #define CALL_INST 17
-#define TOTAL_NUM_OF_INST 30
-
-
-/*****************************************/
-/* insert_call_probed_wrapper() */
-/*****************************************/
-
+#define TOTAL_NUM_OF_INST 33
 
 
 /*****************************************/
@@ -1007,63 +1010,80 @@ debug_cnt++;//TODO: debug
 	int offset = 0;
 	
 
+	
+
 	for(unsigned int i=0; i<TOTAL_NUM_OF_INST; i++){ //TODO: check how many instr in the file
+		xed_encoder_operand_t from, to;
 		//cerr << "We are on:  " << std::dec<< i << endl;
 		xed_decoded_inst_zero_set_mode(&xedd,&dstate); 
 
 		ADDRINT addr  = mmap_addr + offset; //offset is defined by rc
 		
 		if(i==MOV_RDI) { // ip
-			xed_encoder_operand_t from, to;
-			to.u.reg=XED_REG_RDI;
+			to = xed_reg(XED_REG_RDI);
+			//to.type = XED_ENCODER_OPERAND_TYPE_REG;
 		//	from.imm0(0,INS_Address(ins));
-			from.u.imm0 = param.ip;
-			
-			create_mov_xed(&xedd, from, to);
+			from = xed_imm0(param.ip, 64);
+			//from.type = XED_ENCODER_OPERAND_TYPE_IMM0;
+			//cerr << from.u.imm0 << "             " << to.u.reg << endl;
+			rc = create_mov_xed(&xedd, from, to);
+			if(rc == -1){
+				cerr<< "ERROR: create mov xed" << endl;
+				return -1;
+			}
 		}
-		if(i==MOV_RSI) { //inst address / inst size
-			xed_encoder_operand_t from, to;
-			to.u.reg = XED_REG_RSI;
-			from.u.imm0 = param.size_or_address;
-			
-			create_mov_xed(&xedd, from, to);
+		else if(i==MOV_RSI) { //inst address / inst size
+			to = xed_reg(XED_REG_RSI);
+			from = xed_imm0(param.size_or_address,64);
+			//cerr << from.u.imm0 <<  "             " << to.u.reg << endl;
+			rc = create_mov_xed(&xedd, from, to);
+			if(rc == -1){
+				cerr<< "ERROR: create mov xed" << endl;
+				return -1;
+			}
 			
 		}
-		if(i==MOV_RDX) { //reg
-			xed_encoder_operand_t from, to;
-			to.u.reg = XED_REG_RDX;
+		else if(i==MOV_RDX) { //reg
+			to = xed_reg(XED_REG_RDX);
 			//cerr << param.operand_reg << endl;
-			from.u.reg = str2xed_reg_enum_t(param.operand_reg.c_str());
 			
 			if(param.type == AddIns || param.type == AddInsIndexReg){
+				from= xed_reg(param.operand_reg);
 			}
 			else{
-				from.u.reg = XED_REG_INVALID;
+				from = xed_reg(XED_REG_RAX); // Previous xedd_reg_invalid
+			}
+			//cerr << (ADDRINT)from.u.reg << "             " << (ADDRINT)to.u.reg << endl;
+			rc = create_mov_xed(&xedd, from, to);
+			if(rc == -1){
+				cerr<< "ERROR: create mov xed" << endl;
+				return -1;
 			}
 			
-			create_mov_xed(&xedd, from, to);
-			
 		}
-		if(i==MOV_RCX) {//immidiate /index reg val
-			xed_encoder_operand_t from, to;
-			to.u.reg = XED_REG_RCX;
+		else if(i==MOV_RCX) {//immidiate /index reg val
+			to = xed_reg(XED_REG_RCX);
 			if(param.type == AddInsIndexReg){
-				from.u.reg = str2xed_reg_enum_t(param.index_reg.c_str());
+				from = xed_reg(param.index_reg);
 			}
 			
 			else if(param.type == AddIns){
-				from.u.imm0 = param.immediate;
+				from = xed_imm0(param.immediate,64);
 			}
 			
 			else{
-				from.u.reg = XED_REG_INVALID;
+				from = xed_reg(XED_REG_RAX); // Previous xedd_reg_invalid
 			}
-			
-			create_mov_xed(&xedd, from, to);
+			//cerr << from.u.reg << "             " << to.u.reg << endl;
+			rc = create_mov_xed(&xedd, from, to);
+			if(rc == -1){
+				cerr<< "ERROR: create mov xed" << endl;
+				return -1;
+			}
 			
 		}
 		
-		if(i==CALL_INST){ //call lbl
+		else if(i==CALL_INST){ //call lbl
 			//cerr << "Function address   " << func_addr << endl;
 			rc = create_call_xed(&xedd, 0);
 			if(rc == -1){
@@ -1104,6 +1124,29 @@ debug_cnt++;//TODO: debug
 	return 0;
 }
 
+
+xed_reg_enum_t xed_exact_map_from_pin_reg(REG pin_reg)
+{
+	if(REG_StringShort(pin_reg) == "rsp")
+	{
+		return XED_REG_RSP;
+	}
+	else if(REG_StringShort(pin_reg) == "rax")
+	{
+		return XED_REG_RAX;
+	}
+	else if(REG_StringShort(pin_reg) == "rflags")
+	{
+		return XED_REG_RFLAGS;
+	}
+	else if(REG_StringShort(pin_reg) == "rbx")
+	{
+		return XED_REG_RBX;
+	}
+	
+	return XED_REG_RAX; //// Previous xedd_reg_invalid
+}
+
 /*****************************************/
 /* find_candidate_rtns_for_translation() */
 /*****************************************/
@@ -1118,7 +1161,7 @@ int find_candidate_rtns_for_translation(IMG img)
 	ADDRINT func_address_test1 = (ADDRINT)ptr_test1;
 	cerr << "0x" << hex << func_address_test1 << endl;
 	
-	ADDRINT *ptr_test2 = (ADDRINT *)&CheckAddInsindexRegVal;
+	ADDRINT *ptr_test2 = (ADDRINT *)&CheckAddInsIndexReg;
 	ADDRINT func_address_test2 = (ADDRINT)ptr_test2;
 	cerr << "0x" << hex << func_address_test2 << endl;
 	
@@ -1180,7 +1223,7 @@ int find_candidate_rtns_for_translation(IMG img)
 					REG operandReg = REG_INVALID();
 					REG indexReg = REG_INVALID();
 					bool foundReg = false;
-					bool foundindexRegVal = false;
+					bool foundIndexReg = false;
 					bool foundImm = false;
 
 					for (UINT32 i = 0; i < opNum; ++i)
@@ -1193,36 +1236,35 @@ int find_candidate_rtns_for_translation(IMG img)
 
 						else if (!foundReg && INS_OperandIsReg(ins, i) && INS_OperandWritten(ins, i))
 						{
-							regVal = INS_OperandReg(ins, i);
-							if (REG_INVALID() != regVal )
+							operandReg = INS_OperandReg(ins, i);
+							if (REG_INVALID() != operandReg )
 								foundReg = true;
 						}
 
-						else if (!foundindexRegVal && INS_OperandIsReg(ins, i) && INS_OperandReadOnly(ins, i))
+						else if (!foundIndexReg && INS_OperandIsReg(ins, i) && INS_OperandReadOnly(ins, i))
 						{
-							indexRegVal = INS_OperandReg(ins, i);
-							if (REG_INVALID() != indexRegVal)
-								foundindexRegVal = true;
+							indexReg = INS_OperandReg(ins, i);
+							if (REG_INVALID() != indexReg)
+								foundIndexReg = true;
 						}
 
-						if (foundReg && foundImm && REG_valid_for_iarg_reg_value(regVal))
+						if (foundReg && foundImm && REG_valid_for_iarg_reg_value(operandReg))
 						{
 							/*INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)CheckAddIns, 
-								IARG_REG_VALUE, regVal, IARG_UINT64, immediate,
+								IARG_REG_VALUE, operandReg, IARG_UINT64, immediate,
 								IARG_INST_PTR, IARG_UINT64, INS_Size(ins), IARG_END);
 							*/
 
 							//Replace with probed
-							insSize = INS_Size(ins);
 							ADDRINT *ptr = (ADDRINT *)&CheckAddIns;
 							ADDRINT func_address = (ADDRINT)ptr;
 							parameters_to_wrapper_probed par;
 							par.ip = INS_Address(ins);
 							par.size_or_address =  INS_Size(ins);
-							par.operand_reg = REG_StringShort(operandReg);
+							par.operand_reg = xed_exact_map_from_pin_reg(operandReg);
 							//LEVEL_CORE::xed_exact_map_from_pin_reg(operandReg);
 							//using namespace LEVEL_CORE;
-						    cerr << (ADDRINT)operandReg << "                   " << xed_reg_to_pin_reg(XED_REG_RSP) << "                " << XED_REG_RSP   <<endl; //<< str2xed_reg_enum_t(par.operand_reg.c_str()) << endl;
+						    cerr << REG_StringShort(operandReg) << "                   " << "            " << xed_exact_map_from_pin_reg(operandReg)<< endl; //<< xed_reg_to_pin_reg(XED_REG_RSP) << "                " << XED_REG_RSP   <<endl; //<< str2xed_reg_enum_t(par.operand_reg.c_str()) << endl;
 							par.immediate = immediate;
 							par.type = AddIns;
 							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr, par);
@@ -1230,24 +1272,25 @@ int find_candidate_rtns_for_translation(IMG img)
 							
 						}
 
-						else if (foundindexRegVal && foundReg && REG_valid_for_iarg_reg_value(regVal)
-							&& REG_valid_for_iarg_reg_value(indexRegVal))
+						else if (foundIndexReg && foundReg && REG_valid_for_iarg_reg_value(operandReg)
+							&& REG_valid_for_iarg_reg_value(indexReg))
 						{
-							/*INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)CheckAddInsindexRegVal, 
-								IARG_REG_VALUE, regVal, IARG_REG_VALUE, indexRegVal,
+							/*INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)CheckAddInsIndexReg, 
+								IARG_REG_VALUE, operandReg, IARG_REG_VALUE, indexReg,
 								IARG_INST_PTR, IARG_UINT64, INS_Size(ins), IARG_END);
 							*/
 
 							//Replace with probed
-							insSize = INS_Size(ins);
-							ADDRINT *ptr = (ADDRINT *)&CheckAddInsindexRegVal;
+							
+							ADDRINT *ptr = (ADDRINT *)&CheckAddInsIndexReg;
 							ADDRINT func_address = (ADDRINT)ptr;
 							parameters_to_wrapper_probed par;
 							par.ip = INS_Address(ins);
 							par.size_or_address =  INS_Size(ins);
-							par.operand_reg = REG_StringShort(operandReg);
-							par.index_reg = REG_StringShort(indexReg);
+							par.operand_reg = xed_exact_map_from_pin_reg(operandReg);
+							par.index_reg = xed_exact_map_from_pin_reg(indexReg);
 							par.type = AddInsIndexReg;
+							cerr << REG_StringShort(operandReg) << "                   " << "            " << xed_exact_map_from_pin_reg(operandReg)<< endl;
 							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr, par);
 							break;
 						}
@@ -1276,6 +1319,7 @@ int find_candidate_rtns_for_translation(IMG img)
 							ADDRINT func_address = (ADDRINT)ptr;
 							parameters_to_wrapper_probed par;
 							par.ip = INS_Address(ins);
+							//cerr << INS_Address(ins) << endl;
 							par.size_or_address = INS_Address(ins) + INS_MemoryOperandSize(ins,memOp);
 							par.type = MemRead;
 							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr, par);
