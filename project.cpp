@@ -113,6 +113,11 @@ bool IsCalledAfterMain()
 /* ===================================================================== */
 /* Analysis routines                                                     */
 /* ===================================================================== */
+
+UINT64 insSize = 0;
+ADDRINT indexRegValVal =0;
+ADDRINT regVal = 0;
+UINT64 immediate = 0;
  
 VOID Arg1Before(CHAR * name, ADDRINT size)
 {
@@ -149,10 +154,10 @@ VOID mainAfter()
 }
 
 // Print a memory read record
-VOID RecordMemRead(VOID * ip, ADDRINT addr, ADDRINT null1, ADDRINT null2)
+VOID RecordMemRead(VOID * ip, ADDRINT addr)
 {
 
-	cerr << "TEST " << endl; //debug
+	//cerr << "TEST " << endl; //debug
 
 	if (!IsCalledAfterMain())
 		return;
@@ -162,7 +167,7 @@ VOID RecordMemRead(VOID * ip, ADDRINT addr, ADDRINT null1, ADDRINT null2)
 }
 
 // Print a memory write record
-VOID RecordMemWrite(VOID* ip, ADDRINT addr, ADDRINT null1, ADDRINT null2)
+VOID RecordMemWrite(VOID* ip, ADDRINT addr)
 {
 	if (!IsCalledAfterMain())
 		return;
@@ -171,7 +176,35 @@ VOID RecordMemWrite(VOID* ip, ADDRINT addr, ADDRINT null1, ADDRINT null2)
 		cout << "Memory write overflow at address: 0x" << hex << (ADDRINT)ip << dec << endl;
 }
 
-VOID CheckAddIns(ADDRINT regVal, UINT64 immediate, VOID* ip, UINT64 insSize)
+/*VOID CheckAddIns(ADDRINT regVal, UINT64 immediate, VOID* ip, UINT64 insSize)
+{
+	if (!mallocTracer.IsAllocatedAddress(regVal))
+		return;
+
+	if (mallocTracer.GetStartAddress(regVal + immediate) != mallocTracer.GetStartAddress(regVal))
+		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
+}*/
+
+
+/*VOID CheckAddIns0(ADDRINT* ip, ADDRINT addr)
+{
+	xed_decoded_inst_t xedd;
+	xed_error_enum_t xed_code = xed_decode(&xedd, reinterpret_cast<UINT8*>(addr), max_inst_len);
+
+	if (xed_code != XED_ERROR_NONE) {
+		cerr << "ERROR: xed decode failed for instr at: " << "0x" << hex << addr << endl;
+		//RTN_Close( rtn );
+		return;
+	}
+	  xed_decoded_inst_zero_set_mode(&xedd,&dstate);  
+	// Add instr into instr map:
+	xed_uint_t size_inst = xed_decoded_inst_get_length(&xedd);
+	UINT64 insSize = (UINT64)size_inst;
+	
+	
+}*/
+
+VOID CheckAddIns(ADDRINT* ip, ADDRINT addr)
 {
 	if (!mallocTracer.IsAllocatedAddress(regVal))
 		return;
@@ -179,20 +212,6 @@ VOID CheckAddIns(ADDRINT regVal, UINT64 immediate, VOID* ip, UINT64 insSize)
 	if (mallocTracer.GetStartAddress(regVal + immediate) != mallocTracer.GetStartAddress(regVal))
 		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
 }
-
-/*void CheckAddIns0(void* ip, INS ins){ //TODO: finish
-	ADDRINT regVal = INS_OperandReg(ins, 0);
-	cerr << regVal << endl;
-	
-	UINT64 immediate = INS_OperandImmediate(ins, 0);
-	cerr << immediate << endl;
-	
-	UINT64 size = INS_Size(ins);
-	cerr<< size<< endl;
-}*/
-
-
-
 
 
 bool INS_IsAdd(INS ins)
@@ -204,15 +223,23 @@ bool INS_IsAdd(INS ins)
 	return false;
 }
 
-VOID CheckAddInsIndexReg(ADDRINT regVal, ADDRINT indexRegVal, VOID* ip, UINT64 insSize)
+/*VOID CheckAddInsindexRegVal(ADDRINT regVal, ADDRINT indexRegValVal, VOID* ip, UINT64 insSize)
 {
 	if (!mallocTracer.IsAllocatedAddress(regVal))
 		return;
 		
-	if (mallocTracer.GetStartAddress(regVal + indexRegVal) != mallocTracer.GetStartAddress(regVal))
+	if (mallocTracer.GetStartAddress(regVal + indexRegValVal) != mallocTracer.GetStartAddress(regVal))
+		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
+}*/
+
+VOID CheckAddInsindexRegVal(ADDRINT* ip, ADDRINT addr)
+{
+	if (!mallocTracer.IsAllocatedAddress(regVal))
+		return;
+		
+	if (mallocTracer.GetStartAddress(regVal + indexRegValVal) != mallocTracer.GetStartAddress(regVal))
 		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
 }
-
 
 
 /*======================================================================*/
@@ -224,6 +251,7 @@ VOID CheckAddInsIndexReg(ADDRINT regVal, ADDRINT indexRegVal, VOID* ip, UINT64 i
 /* malloc tracer code	 */
 /* malloc tracer code	 */
 /*======================================================================*/
+
 
 
 
@@ -978,7 +1006,7 @@ debug_cnt++;//TODO: debug
 			//instr_map[num_of_instr_map_entries].new_ins_addr;
 		}*/
 		
-		if(i==17){ //call lbl
+		if(i==16){ //call lbl
 			//cerr << "Function address   " << func_addr << endl;
 			rc = create_call_xed(&xedd, 0);
 			if(rc == -1){
@@ -1032,7 +1060,7 @@ int find_candidate_rtns_for_translation(IMG img)
 	ADDRINT func_address_test1 = (ADDRINT)ptr_test1;
 	cerr << "0x" << hex << func_address_test1 << endl;
 	
-	ADDRINT *ptr_test2 = (ADDRINT *)&CheckAddInsIndexReg;
+	ADDRINT *ptr_test2 = (ADDRINT *)&CheckAddInsindexRegVal;
 	ADDRINT func_address_test2 = (ADDRINT)ptr_test2;
 	cerr << "0x" << hex << func_address_test2 << endl;
 	
@@ -1090,43 +1118,44 @@ int find_candidate_rtns_for_translation(IMG img)
 				{
 					
 					UINT32 opNum = INS_OperandCount(ins);
-					//UINT64 immediate = 0;  /*for compile testing*/
-					REG operandReg = REG_INVALID();
-					REG indexReg = REG_INVALID();
+					immediate = 0;  /*for compile testing*/
+					REG regVal = REG_INVALID();
+					REG indexRegVal = REG_INVALID();
 					bool foundReg = false;
-					bool foundIndexReg = false;
+					bool foundindexRegVal = false;
 					bool foundImm = false;
 
 					for (UINT32 i = 0; i < opNum; ++i)
 					{
 						if (!foundImm && INS_OperandIsImmediate(ins, i))
 						{
-							//immediate = INS_OperandImmediate(ins, i); /*for compile testing*/
+							immediate = INS_OperandImmediate(ins, i); /*for compile testing*/
 							foundImm = true;
 						}
 
 						else if (!foundReg && INS_OperandIsReg(ins, i) && INS_OperandWritten(ins, i))
 						{
-							operandReg = INS_OperandReg(ins, i);
-							if (REG_INVALID() != operandReg )
+							regVal = INS_OperandReg(ins, i);
+							if (REG_INVALID() != regVal )
 								foundReg = true;
 						}
 
-						else if (!foundIndexReg && INS_OperandIsReg(ins, i) && INS_OperandReadOnly(ins, i))
+						else if (!foundindexRegVal && INS_OperandIsReg(ins, i) && INS_OperandReadOnly(ins, i))
 						{
-							indexReg = INS_OperandReg(ins, i);
-							if (REG_INVALID() != indexReg)
-								foundIndexReg = true;
+							indexRegVal = INS_OperandReg(ins, i);
+							if (REG_INVALID() != indexRegVal)
+								foundindexRegVal = true;
 						}
 
-						if (foundReg && foundImm && REG_valid_for_iarg_reg_value(operandReg))
+						if (foundReg && foundImm && REG_valid_for_iarg_reg_value(regVal))
 						{
 							/*INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)CheckAddIns, 
-								IARG_REG_VALUE, operandReg, IARG_UINT64, immediate,
+								IARG_REG_VALUE, regVal, IARG_UINT64, immediate,
 								IARG_INST_PTR, IARG_UINT64, INS_Size(ins), IARG_END);
 							*/
 
 							//Replace with probed
+							insSize = INS_Size(ins);
 							ADDRINT *ptr = (ADDRINT *)&CheckAddIns;
 							ADDRINT func_address = (ADDRINT)ptr;
 							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
@@ -1134,17 +1163,17 @@ int find_candidate_rtns_for_translation(IMG img)
 							
 						}
 
-						else if (foundIndexReg && foundReg && REG_valid_for_iarg_reg_value(operandReg)
-							&& REG_valid_for_iarg_reg_value(indexReg))
+						else if (foundindexRegVal && foundReg && REG_valid_for_iarg_reg_value(regVal)
+							&& REG_valid_for_iarg_reg_value(indexRegVal))
 						{
-							/*INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)CheckAddInsIndexReg, 
-								IARG_REG_VALUE, operandReg, IARG_REG_VALUE, indexReg,
+							/*INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)CheckAddInsindexRegVal, 
+								IARG_REG_VALUE, regVal, IARG_REG_VALUE, indexRegVal,
 								IARG_INST_PTR, IARG_UINT64, INS_Size(ins), IARG_END);
 							*/
 
 							//Replace with probed
-							
-							ADDRINT *ptr = (ADDRINT *)&CheckAddInsIndexReg;
+							insSize = INS_Size(ins);
+							ADDRINT *ptr = (ADDRINT *)&CheckAddInsindexRegVal;
 							ADDRINT func_address = (ADDRINT)ptr;
 							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr);
 							break;
