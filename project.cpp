@@ -48,6 +48,7 @@ extern "C" {
 #include "xed-interface.h"
 }
 #include <iostream>
+#include <ctype.h>
 #include <iomanip>
 #include <fstream>
 #include <sys/mman.h>
@@ -62,6 +63,7 @@ extern "C" {
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <values.h>
+#include <string>
 
 //#include "pin.H"
 //#include <iostream>
@@ -121,6 +123,7 @@ UINT64 immediate = 0;
  
 VOID Arg1Before(CHAR * name, ADDRINT size)
 {
+	cerr << "TEST" << endl;
 	if (!IsCalledAfterMain())
 		return;
 
@@ -129,6 +132,7 @@ VOID Arg1Before(CHAR * name, ADDRINT size)
 
 VOID AfterFree(CHAR * name, ADDRINT addr)
 {
+	cerr << "TEST" << endl;
 	if (!IsCalledAfterMain())
 		return;
 
@@ -137,6 +141,7 @@ VOID AfterFree(CHAR * name, ADDRINT addr)
 
 VOID MallocAfter(ADDRINT ret)
 {
+	cerr << "TEST" << endl;
 	if (!IsCalledAfterMain())
 		return;
 	
@@ -145,11 +150,13 @@ VOID MallocAfter(ADDRINT ret)
 
 VOID mainBefore()
 {
+	cerr << "TEST" << endl;
 	mainInit = true;
 }
 
 VOID mainAfter()
 {
+	cerr << "TEST" << endl;
 	mainFinished =  true;
 }
 
@@ -157,10 +164,11 @@ VOID mainAfter()
 VOID RecordMemRead(VOID * ip, ADDRINT addr)
 {
 
-	//cerr << "TEST " << endl; //debug
-
-	if (!IsCalledAfterMain())
-		return;
+	/*if (!IsCalledAfterMain())
+		return;*/
+	
+	//cerr << suspiciousAddresses.count((ADDRINT)ip) << endl; //debug
+	//suspiciousAddresses.count((ADDRINT)ip)
 	
 	if (suspiciousAddresses.count((ADDRINT)ip) !=0)
 		cout << "Memory read overflow at address: 0x" << hex << (ADDRINT)ip << dec << endl;
@@ -169,8 +177,10 @@ VOID RecordMemRead(VOID * ip, ADDRINT addr)
 // Print a memory write record
 VOID RecordMemWrite(VOID* ip, ADDRINT addr)
 {
-	if (!IsCalledAfterMain())
-		return;
+	/*if (!IsCalledAfterMain())
+		return;*/
+	
+	//cerr << suspiciousAddresses.count((ADDRINT)ip) << endl; //debug
 	
 	if (suspiciousAddresses.count((ADDRINT)ip) !=0)
 		cout << "Memory write overflow at address: 0x" << hex << (ADDRINT)ip << dec << endl;
@@ -193,7 +203,10 @@ VOID CheckAddInsIndexReg(VOID* ip,  UINT64 insSize, ADDRINT regVal, ADDRINT inde
 		return;
 		
 	if (mallocTracer.GetStartAddress(regVal + indexRegVal) != mallocTracer.GetStartAddress(regVal))
+	{		
+		cerr << "TEST" << endl;
 		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
+	}
 }
 
 VOID CheckAddIns(VOID* ip, UINT64 insSize, ADDRINT regVal, UINT64 immediate)
@@ -202,7 +215,10 @@ VOID CheckAddIns(VOID* ip, UINT64 insSize, ADDRINT regVal, UINT64 immediate)
 		return;
 
 	if (mallocTracer.GetStartAddress(regVal + immediate) != mallocTracer.GetStartAddress(regVal))
+	{
+		cerr << "TEST" << endl;
 		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
+	}
 }
 
 
@@ -932,7 +948,7 @@ int create_mov_xed(xed_decoded_inst_t *xedd, xed_encoder_operand_t from, xed_enc
         //xed_error = xed_encode (&enc_req, enc_buf2, max_size, &new_size);
         xed_error = xed_encode(xedd, enc_buf2, max_size, &new_size);
         if (xed_error != XED_ERROR_NONE) {
-                cout << "if (xed_error != XED_ERROR_NONE)" << endl;
+                cout << "(xed_error != XED_ERROR_NONE)" << endl;
                 cerr << "ENCODE ERROR: " << xed_error_enum_t2str(xed_error) << endl;
                 return -1;
         }
@@ -990,8 +1006,8 @@ return new_size;
 #define MOV_RSI 7
 #define MOV_RDX 8
 #define MOV_RCX 9
-#define CALL_INST 20
-#define TOTAL_NUM_OF_INST 35
+#define CALL_INST 19
+#define TOTAL_NUM_OF_INST 34
 
 
 /*****************************************/
@@ -1008,7 +1024,7 @@ debug_cnt++;//TODO: debug
 	
 	int rc;
 	int offset = 0;
-	
+	xed_uint_t size_inst = 0;
 
 	
 
@@ -1018,6 +1034,18 @@ debug_cnt++;//TODO: debug
 		xed_decoded_inst_zero_set_mode(&xedd,&dstate); 
 
 		ADDRINT addr  = mmap_addr + offset; //offset is defined by rc
+		
+		xed_code = xed_decode(&xedd, reinterpret_cast<UINT8*>(addr), max_inst_len);
+			//cerr << "++++++++++++++++++++++++++++++++ " << dec <<i << endl;
+		if (xed_code != XED_ERROR_NONE) {
+			cerr << "ERROR: xed decode failed for instr at: " << "0x" << hex << addr << endl;
+			//RTN_Close( rtn );
+			return 1;
+		}
+		size_inst = xed_decoded_inst_get_length(&xedd);
+		offset+=size_inst;
+		
+		
 		if(i==MOV_RDI) { // ip
 			to = xed_reg(XED_REG_RDI);
 			//to.type = XED_ENCODER_OPERAND_TYPE_REG;
@@ -1050,7 +1078,7 @@ debug_cnt++;//TODO: debug
 				from= xed_reg(param.operand_reg);
 			}
 			else{
-				from = xed_reg(XED_REG_RAX); // Previous xedd_reg_invalid
+				from = xed_reg(XED_REG_R8 ); // Previous xedd_reg_invalid
 			}
 			//cerr << (ADDRINT)from.u.reg << "             " << (ADDRINT)to.u.reg << endl;
 			rc = create_mov_xed(&xedd, from, to);
@@ -1060,7 +1088,7 @@ debug_cnt++;//TODO: debug
 			}
 			
 		}
-		else if(i==MOV_RCX) {//immidiate /index reg val
+		else if(i==MOV_RCX) {//immidiate /index reg val HERE
 			to = xed_reg(XED_REG_RCX);
 			if(param.type == AddInsIndexReg){
 				from = xed_reg(param.index_reg);
@@ -1071,7 +1099,7 @@ debug_cnt++;//TODO: debug
 			}
 			
 			else{
-				from = xed_reg(XED_REG_RAX); // Previous xedd_reg_invalid
+				from = xed_reg(XED_REG_R8 ); // Previous xedd_reg_invalid
 			}
 			//cerr << from.u.reg << "             " << to.u.reg << endl;
 			rc = create_mov_xed(&xedd, from, to);
@@ -1090,18 +1118,9 @@ debug_cnt++;//TODO: debug
 				return -1;
 			}
 		}
-		else
-		{
-			xed_code = xed_decode(&xedd, reinterpret_cast<UINT8*>(addr), max_inst_len);
 
-			if (xed_code != XED_ERROR_NONE) {
-				cerr << "ERROR: xed decode failed for instr at: " << "0x" << hex << addr << endl;
-				//RTN_Close( rtn );
-				return 1;
-			}
-		}
 		// Add instr into instr map:
-		xed_uint_t size_inst = xed_decoded_inst_get_length(&xedd);
+		size_inst = xed_decoded_inst_get_length(&xedd);
 		rc = add_new_instr_entry(&xedd, tc_cursor, size_inst);
 		
 		if (i==CALL_INST)
@@ -1116,7 +1135,7 @@ debug_cnt++;//TODO: debug
 			return 1;
 
 		}	
-		offset+=rc;
+		
 	}//for
 	
 	
@@ -1124,7 +1143,7 @@ debug_cnt++;//TODO: debug
 }
 
 
-xed_reg_enum_t xed_exact_map_from_pin_reg(REG pin_reg)
+/*xed_reg_enum_t xed_exact_map_from_pin_reg(REG pin_reg)
 {
 	if(REG_StringShort(pin_reg) == "rsp")
 	{
@@ -1144,6 +1163,14 @@ xed_reg_enum_t xed_exact_map_from_pin_reg(REG pin_reg)
 	}
 	
 	return XED_REG_RAX; //// Previous xedd_reg_invalid
+}*/
+
+string ToUpper(string s)
+{
+		for(unsigned int i = 0; i < s.size(); i++) {
+		s.at(i) = toupper(s.at(i));
+		}
+	return s;
 }
 
 /*****************************************/
@@ -1260,12 +1287,16 @@ int find_candidate_rtns_for_translation(IMG img)
 							parameters_to_wrapper_probed par;
 							par.ip = INS_Address(ins);
 							par.size_or_address =  INS_Size(ins);
-							par.operand_reg = xed_exact_map_from_pin_reg(operandReg);
+							par.operand_reg = str2xed_reg_enum_t(ToUpper(REG_StringShort(operandReg)).c_str());
 							//LEVEL_CORE::xed_exact_map_from_pin_reg(operandReg);
 							//using namespace LEVEL_CORE;
-						    cerr << REG_StringShort(operandReg) << "                   " << "            " << xed_exact_map_from_pin_reg(operandReg)<< endl; //<< xed_reg_to_pin_reg(XED_REG_RSP) << "                " << XED_REG_RSP   <<endl; //<< str2xed_reg_enum_t(par.operand_reg.c_str()) << endl;
+						    cerr << REG_StringShort(operandReg) << "                   " << "            " << str2xed_reg_enum_t(ToUpper(REG_StringShort(operandReg)).c_str()) << endl; //<< xed_reg_to_pin_reg(XED_REG_RSP) << "                " << XED_REG_RSP   <<endl; //<< str2xed_reg_enum_t(par.operand_reg.c_str()) << endl;
 							par.immediate = immediate;
 							par.type = AddIns;
+							if(par.operand_reg == XED_REG_RFLAGS)
+							{
+								goto jmp;
+							}
 							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr, par);
 							break;
 							
@@ -1286,10 +1317,10 @@ int find_candidate_rtns_for_translation(IMG img)
 							parameters_to_wrapper_probed par;
 							par.ip = INS_Address(ins);
 							par.size_or_address =  INS_Size(ins);
-							par.operand_reg = xed_exact_map_from_pin_reg(operandReg);
-							par.index_reg = xed_exact_map_from_pin_reg(indexReg);
+							par.operand_reg = str2xed_reg_enum_t(ToUpper(REG_StringShort(operandReg)).c_str());;
+							par.index_reg = str2xed_reg_enum_t(ToUpper(REG_StringShort(indexReg)).c_str());;
 							par.type = AddInsIndexReg;
-							cerr << REG_StringShort(operandReg) << "                   " << "            " << xed_exact_map_from_pin_reg(operandReg)<< endl;
+							cerr << REG_StringShort(operandReg) << "                   " << "            " << str2xed_reg_enum_t(ToUpper(REG_StringShort(operandReg)).c_str())<< endl;
 							cerr << REG_StringShort(indexReg) << endl;
 							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr, par);
 							break;
@@ -1355,7 +1386,7 @@ int find_candidate_rtns_for_translation(IMG img)
 				/* ============================================ */
 				/* malloc trace instrumentation				    */
 				/* ============================================ */
-
+jmp:
     			//debug print of orig instruction:
 				if (KnobVerbose) {
  					cerr << "old instr: ";
