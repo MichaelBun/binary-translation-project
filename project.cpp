@@ -123,25 +123,25 @@ UINT64 immediate = 0;
  
 VOID Arg1Before(CHAR * name, ADDRINT size)
 {
-	cerr << "TEST" << endl;
+	//cerr << "TEST" << endl;
 	if (!IsCalledAfterMain())
 		return;
 
 	lastMallocSize = size;
 }
 
-VOID AfterFree(CHAR * name, ADDRINT addr)
+VOID AfterFree(CHAR * name, ADDRINT addr,PROTO free)
 {
-	cerr << "TEST" << endl;
+	//cerr << "TEST" << endl;
 	if (!IsCalledAfterMain())
 		return;
 
 	mallocTracer.DeleteAddress(addr);
 }
 
-VOID MallocAfter(ADDRINT ret)
+VOID MallocAfter(ADDRINT ret, PROTO mal)
 {
-	cerr << "TEST" << endl;
+	//cerr << "TEST" << endl;
 	if (!IsCalledAfterMain())
 		return;
 	
@@ -150,13 +150,13 @@ VOID MallocAfter(ADDRINT ret)
 
 VOID mainBefore()
 {
-	cerr << "TEST" << endl;
+	//cerr << "TEST" << endl;
 	mainInit = true;
 }
 
-VOID mainAfter()
+VOID mainAfter(PROTO main)
 {
-	cerr << "TEST" << endl;
+	//cerr << "TEST" << endl;
 	mainFinished =  true;
 }
 
@@ -164,8 +164,8 @@ VOID mainAfter()
 VOID RecordMemRead(VOID * ip, ADDRINT addr)
 {
 
-	/*if (!IsCalledAfterMain())
-		return;*/
+	if (!IsCalledAfterMain())
+		return;
 	
 	//cerr << suspiciousAddresses.count((ADDRINT)ip) << endl; //debug
 	//suspiciousAddresses.count((ADDRINT)ip)
@@ -177,8 +177,8 @@ VOID RecordMemRead(VOID * ip, ADDRINT addr)
 // Print a memory write record
 VOID RecordMemWrite(VOID* ip, ADDRINT addr)
 {
-	/*if (!IsCalledAfterMain())
-		return;*/
+	if (!IsCalledAfterMain())
+		return;
 	
 	//cerr << suspiciousAddresses.count((ADDRINT)ip) << endl; //debug
 	
@@ -204,7 +204,7 @@ VOID CheckAddInsIndexReg(VOID* ip,  UINT64 insSize, ADDRINT regVal, ADDRINT inde
 		
 	if (mallocTracer.GetStartAddress(regVal + indexRegVal) != mallocTracer.GetStartAddress(regVal))
 	{		
-		cerr << "TEST" << endl;
+		//cerr << "TEST" << endl;
 		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
 	}
 }
@@ -216,7 +216,7 @@ VOID CheckAddIns(VOID* ip, UINT64 insSize, ADDRINT regVal, UINT64 immediate)
 
 	if (mallocTracer.GetStartAddress(regVal + immediate) != mallocTracer.GetStartAddress(regVal))
 	{
-		cerr << "TEST" << endl;
+		//cerr << "TEST" << endl;
 		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
 	}
 }
@@ -1183,22 +1183,6 @@ int find_candidate_rtns_for_translation(IMG img)
 	if (!IMG_IsMainExecutable(img))
 		return 0;
 	
-	ADDRINT *ptr_test1 = (ADDRINT *)&CheckAddIns;
-	ADDRINT func_address_test1 = (ADDRINT)ptr_test1;
-	cerr << "0x" << hex << func_address_test1 << endl;
-	
-	ADDRINT *ptr_test2 = (ADDRINT *)&CheckAddInsIndexReg;
-	ADDRINT func_address_test2 = (ADDRINT)ptr_test2;
-	cerr << "0x" << hex << func_address_test2 << endl;
-	
-	ADDRINT *ptr_test3 = (ADDRINT *)&RecordMemRead;
-	ADDRINT func_address_test3 = (ADDRINT)ptr_test3;
-	cerr << "0x" << hex << func_address_test3 << endl;
-	
-	ADDRINT *ptr_test4 = (ADDRINT *)&RecordMemWrite;
-	ADDRINT func_address_test4 = (ADDRINT)ptr_test4;
-	cerr << "0x" << hex << func_address_test4 << endl;
-	
     int rc;
 
 	//open and map "inline_inst.bin". must be in the same folder
@@ -1276,10 +1260,6 @@ int find_candidate_rtns_for_translation(IMG img)
 
 						if (foundReg && foundImm && REG_valid_for_iarg_reg_value(operandReg))
 						{
-							/*INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)CheckAddIns, 
-								IARG_REG_VALUE, operandReg, IARG_UINT64, immediate,
-								IARG_INST_PTR, IARG_UINT64, INS_Size(ins), IARG_END);
-							*/
 
 							//Replace with probed
 							ADDRINT *ptr = (ADDRINT *)&CheckAddIns;
@@ -1288,9 +1268,6 @@ int find_candidate_rtns_for_translation(IMG img)
 							par.ip = INS_Address(ins);
 							par.size_or_address =  INS_Size(ins);
 							par.operand_reg = str2xed_reg_enum_t(ToUpper(REG_StringShort(operandReg)).c_str());
-							//LEVEL_CORE::xed_exact_map_from_pin_reg(operandReg);
-							//using namespace LEVEL_CORE;
-						    cerr << REG_StringShort(operandReg) << "                   " << "            " << str2xed_reg_enum_t(ToUpper(REG_StringShort(operandReg)).c_str()) << endl; //<< xed_reg_to_pin_reg(XED_REG_RSP) << "                " << XED_REG_RSP   <<endl; //<< str2xed_reg_enum_t(par.operand_reg.c_str()) << endl;
 							par.immediate = immediate;
 							par.type = AddIns;
 							if(par.operand_reg == XED_REG_RFLAGS)
@@ -1305,12 +1282,6 @@ int find_candidate_rtns_for_translation(IMG img)
 						else if (foundIndexReg && foundReg && REG_valid_for_iarg_reg_value(operandReg)
 							&& REG_valid_for_iarg_reg_value(indexReg))
 						{
-							/*INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)CheckAddInsIndexReg, 
-								IARG_REG_VALUE, operandReg, IARG_REG_VALUE, indexReg,
-								IARG_INST_PTR, IARG_UINT64, INS_Size(ins), IARG_END);
-							*/
-
-							//Replace with probed
 							
 							ADDRINT *ptr = (ADDRINT *)&CheckAddInsIndexReg;
 							ADDRINT func_address = (ADDRINT)ptr;
@@ -1320,8 +1291,6 @@ int find_candidate_rtns_for_translation(IMG img)
 							par.operand_reg = str2xed_reg_enum_t(ToUpper(REG_StringShort(operandReg)).c_str());;
 							par.index_reg = str2xed_reg_enum_t(ToUpper(REG_StringShort(indexReg)).c_str());;
 							par.type = AddInsIndexReg;
-							cerr << REG_StringShort(operandReg) << "                   " << "            " << str2xed_reg_enum_t(ToUpper(REG_StringShort(operandReg)).c_str())<< endl;
-							cerr << REG_StringShort(indexReg) << endl;
 							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr, par);
 							break;
 						}
@@ -1330,20 +1299,12 @@ int find_candidate_rtns_for_translation(IMG img)
 				else 
 				{
 					UINT32 memOperands = INS_MemoryOperandCount(ins);
-				//	cerr << "-----------------------------------------memory operands: " << memOperands << endl;
-				//	if (memOperands != 0) debug_x++;
 					// Iterate over each memory operand of the instruction.
 					for (UINT32 memOp = 0; memOp < memOperands; memOp++)
 					{
 						if (INS_MemoryOperandIsRead(ins, memOp))
 						{
 							debug_cnt_findRtnFor++;
-							 /*INS_InsertCall(
-								ins, IPOINT_BEFORE, (AFUNPTR)RecordMemRead,
-								IARG_INST_PTR,
-								IARG_MEMORYOP_EA, memOp,
-								IARG_END);*/
-
 							//Replace with probed
 							
 							ADDRINT *ptr = (ADDRINT *)&RecordMemRead;
@@ -1360,15 +1321,6 @@ int find_candidate_rtns_for_translation(IMG img)
 						// In that case we instrument it once for read and once for write.
 						if (INS_MemoryOperandIsWritten(ins, memOp))
 						{
-
-							 /*INS_InsertCall(
-								ins, IPOINT_BEFORE, (AFUNPTR)RecordMemWrite,
-								IARG_INST_PTR,
-								IARG_MEMORYOP_EA, memOp,
-								IARG_UINT64, INS_Size(ins),
-								IARG_END);*/
-
-							//Replace with probed
 							
 							ADDRINT *ptr = (ADDRINT *)&RecordMemWrite;
 							ADDRINT func_address = (ADDRINT)ptr;
@@ -1757,6 +1709,7 @@ void commit_uncommit_translated_routines(void *v)
 }
 
 
+
 /****************************/
 /* allocate_and_init_memory */
 /****************************/ 
@@ -1846,6 +1799,17 @@ int allocate_and_init_memory(IMG img)
 	return 0;
 }
 
+/****************************/
+/* RTN_Instrumentation functions */
+/****************************/ 
+
+/*void* mallocWrapper (size_t size)
+{
+	Arg1Before("malloc",0)*/
+
+
+
+
 
 /* ============================================ */
 /* Main translation routine                     */
@@ -1856,58 +1820,91 @@ VOID ImageLoad(IMG img, VOID *v)
 	// debug print of all images' instructions
 	//dump_all_image_instrs(img);
 
-    // Step 0: Check that the image is of the main executable file:
-	if (!IMG_IsMainExecutable(img))
-		return;
+
 	
 	/* ============================================ */
 	/* malloc trace instrumentation				    */
 	/* ============================================ */
 	RTN mallocRtn = RTN_FindByName(img, MALLOC);
+	//cerr << MALLOC << endl;
+	/*if(!RTN_Valid(mallocRtn))
+	{
+		cerr << "Damn it" << endl;
+	}*/
 	if(RTN_Valid(mallocRtn) && RTN_IsSafeForProbedInsertion(mallocRtn))
 	{
-			RTN_Open(mallocRtn);
+		cerr << "We are here" << endl;
+			//RTN_Open(mallocRtn);
 
 			RTN_InsertCallProbed(mallocRtn, IPOINT_BEFORE, (AFUNPTR)Arg1Before,
 						   IARG_ADDRINT, MALLOC,
 						   IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
 						   IARG_END);
-
+		
+		    PROTO proto_malloc = PROTO_Allocate( PIN_PARG(void *), CALLINGSTD_DEFAULT,
+                                             "malloc", PIN_PARG(int), PIN_PARG_END() );	
+		
 			RTN_InsertCallProbed(mallocRtn, IPOINT_AFTER, (AFUNPTR)MallocAfter,
-						   IARG_FUNCRET_EXITPOINT_VALUE, IARG_END);
+						   IARG_FUNCRET_EXITPOINT_VALUE, IARG_PROTOTYPE, proto_malloc, IARG_END);
+		
+			PROTO_Free(proto_malloc);
+			cerr << "We are here2"<< endl;
 
-			RTN_Close(mallocRtn);
+			//RTN_Close(mallocRtn);
 	}
 
     // Find the free() function.
     RTN freeRtn = RTN_FindByName(img, FREE);
-	if(RTN_Valid(mallocRtn) && RTN_IsSafeForProbedInsertion(freeRtn))
+	/*if(!RTN_Valid(freeRtn))
 	{
-			RTN_Open(freeRtn);
+		cerr << "Damn it" << endl;
+	}*/
+	if(RTN_Valid(freeRtn) && RTN_IsSafeForProbedInsertion(freeRtn))
+	{
+			//RTN_Open(freeRtn);
+			PROTO proto_free = PROTO_Allocate( PIN_PARG(void), CALLINGSTD_DEFAULT,
+                                             "free", PIN_PARG(void*), PIN_PARG_END() );	
 			// Instrument free()
 			RTN_InsertCallProbed(freeRtn, IPOINT_AFTER, (AFUNPTR)AfterFree,
 						   IARG_ADDRINT, FREE,
-						   IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
+						   IARG_FUNCARG_ENTRYPOINT_VALUE, 0,IARG_PROTOTYPE, proto_free ,
 						   IARG_END);
-			RTN_Close(freeRtn);
+			//RTN_Close(freeRtn);
+			PROTO_Free(proto_free);
+			cerr << "We are here3"<< endl;
 	}
     
     RTN mainRtn = RTN_FindByName(img, MAIN);
-	if(RTN_Valid(mallocRtn) && RTN_IsSafeForProbedInsertion(mainRtn))
+	/*if(!RTN_Valid(mainRtn))
 	{
-			RTN_Open(mainRtn);
+		cerr << "Damn it" << endl;
+	}*/
+	if(RTN_Valid(mainRtn) && RTN_IsSafeForProbedInsertion(mainRtn))
+	{
+		
+									cerr << "We are here4"<< endl;
+			//RTN_Open(mainRtn);
 
 			RTN_InsertCallProbed(mainRtn, IPOINT_BEFORE, (AFUNPTR)mainBefore, IARG_END);
+		
 
-			RTN_InsertCallProbed(mainRtn, IPOINT_AFTER, (AFUNPTR)mainAfter, IARG_END);
-
-			RTN_Close(mainRtn);
+			
+			PROTO proto_main = PROTO_Allocate( PIN_PARG(int), CALLINGSTD_DEFAULT,
+                                             "main", PIN_PARG(int), PIN_PARG(char*), PIN_PARG_END() );	
+			
+			RTN_InsertCallProbed(mainRtn, IPOINT_AFTER, (AFUNPTR)mainAfter, IARG_PROTOTYPE, proto_main, IARG_END);
+		
+			PROTO_Free(proto_main);
+			//RTN_Close(mainRtn);
 	}
 	
 	/* ============================================ */
 	/* malloc trace instrumentation				    */
 	/* ============================================ */
 	
+	// Step 0: Check that the image is of the main executable file:
+	if (!IMG_IsMainExecutable(img))
+		return;
 
 	int rc = 0;
 
@@ -1945,10 +1942,10 @@ VOID ImageLoad(IMG img, VOID *v)
 	rc = copy_instrs_to_tc();
 	if (rc < 0 )
 		return;
-cerr << "<<<<<<<<<<<<<<<<<< num of entries: " << std::dec <<num_of_instr_map_entries;
+/*cerr << "<<<<<<<<<<<<<<<<<< num of entries: " << std::dec <<num_of_instr_map_entries;
 		cerr << " max ins: " << std::dec<< max_ins_count << " >>>>>>>>>>>>>>>>>>" << endl;
 	cerr<< "num of entries to insert_call_wrapper: " << debug_cnt <<endl;//TODO: debug
-//	cerr << "num of entries to add_ins: " << debug_x << endl;
+//	cerr << "num of entries to add_ins: " << debug_x << endl;*/
 	cout << "after write all new instructions to memory tc" << endl;
 
    if (KnobDumpTranslatedCode) {
