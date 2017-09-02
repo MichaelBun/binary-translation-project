@@ -116,10 +116,6 @@ bool IsCalledAfterMain()
 /* Analysis routines                                                     */
 /* ===================================================================== */
 
-UINT64 insSize = 0;
-ADDRINT indexRegValVal =0;
-ADDRINT regVal = 0;
-//UINT64 immediate = 0;
  
 VOID Arg1Before(CHAR * name, ADDRINT size)
 {
@@ -132,7 +128,7 @@ VOID Arg1Before(CHAR * name, ADDRINT size)
 
 VOID AfterFree(CHAR * name, ADDRINT addr,PROTO free)
 {
-	//cerr << "TEST" << endl;
+	//cerr << addr << endl;
 	if (!IsCalledAfterMain())
 		return;
 
@@ -141,7 +137,7 @@ VOID AfterFree(CHAR * name, ADDRINT addr,PROTO free)
 
 VOID MallocAfter(ADDRINT ret, PROTO mal)
 {
-	//cerr << "TEST" << endl;
+	//cerr << ret << endl;
 	if (!IsCalledAfterMain())
 		return;
 	
@@ -176,17 +172,18 @@ VOID RecordMemWrite(VOID* ip, ADDRINT addr)
 	if (!IsCalledAfterMain())
 		return;
 	
+	//cerr << "TEST" << endl;
 	if (suspiciousAddresses.count((ADDRINT)ip) !=0)
 		cout << "Memory write overflow at address: 0x" << hex << (ADDRINT)ip << dec << endl;
 }
 
 VOID CheckAddIns(VOID* ip,  UINT64 insSize, ADDRINT regVal, UINT64 immediate)
 {
+	//cerr << "TEST" << endl;
 	if (!mallocTracer.IsAllocatedAddress(regVal))
 		return;
-	
-	//cerr << mallocTracer.GetStartAddress(regVal + immediate) << "             " << mallocTracer.GetStartAddress(regVal) << endl;
-	cerr << immediate << endl;
+
+	//cerr << immediate << endl;
 	
 	if (mallocTracer.GetStartAddress(regVal + immediate) != mallocTracer.GetStartAddress(regVal))
 		suspiciousAddresses.insert(ADDRINT(ip) + insSize);
@@ -206,6 +203,7 @@ bool INS_IsAdd(INS ins)
 
 VOID CheckAddInsIndexReg(VOID* ip,  UINT64 insSize, ADDRINT regVal, ADDRINT indexRegVal)
 {
+	//cerr << "TEST" << endl;
 	if (!mallocTracer.IsAllocatedAddress(regVal))
 		return;
 	
@@ -930,9 +928,17 @@ int create_mov_xed(xed_decoded_inst_t *xedd, xed_encoder_operand_t from, xed_enc
         xed_encoder_instruction_t enc_instr;
         unsigned int max_size = XED_MAX_INSTRUCTION_BYTES;
         unsigned int new_size = 0;
-
+		//cerr << to.reg << endl;
         xed_error_enum_t xed_error;
-        xed_inst2(&enc_instr, dstate, XED_ICLASS_MOV, 64, to, from);
+		//cerr << to.width_bits << endl;
+		if(to.width_bits == 32 || from.width_bits == 32)
+		{
+			//cerr << "TEST" << endl;
+			xed_inst2(&enc_instr, dstate, XED_ICLASS_MOV, 32, to, from);
+		}
+		else{
+        	xed_inst2(&enc_instr, dstate, XED_ICLASS_MOV, 64, to, from);
+		}
         xed_encoder_request_zero_set_mode(xedd, &dstate);
         xed_bool_t convert_ok = xed_convert_to_encoder_request(xedd, &enc_instr);
         if (!convert_ok) {
@@ -996,12 +1002,12 @@ return new_size;
 
 
 
-#define MOV_RDI 6
-#define MOV_RSI 7
-#define MOV_RDX 8
-#define MOV_RCX 9
-#define CALL_INST 19
-#define TOTAL_NUM_OF_INST 34
+#define MOV_RDI 7
+#define MOV_RSI 9
+#define MOV_RDX 11
+#define MOV_RCX 13
+#define CALL_INST 23
+#define TOTAL_NUM_OF_INST 38
 
 
 /*****************************************/
@@ -1042,11 +1048,8 @@ debug_cnt++;//TODO: debug
 		
 		if(i==MOV_RDI) { // ip
 			to = xed_reg(XED_REG_RDI);
-			//to.type = XED_ENCODER_OPERAND_TYPE_REG;
-		//	from.imm0(0,INS_Address(ins));
+			to.width_bits = 64;
 			from = xed_imm0(param.ip, 64);
-			//from.type = XED_ENCODER_OPERAND_TYPE_IMM0;
-			//cerr << from.u.imm0 << "             " << to.u.reg << endl;
 			rc = create_mov_xed(&xedd, from, to);
 			if(rc == -1){
 				cerr<< "ERROR: create mov xed" << endl;
@@ -1055,8 +1058,8 @@ debug_cnt++;//TODO: debug
 		}
 		else if(i==MOV_RSI) { //inst address / inst size
 			to = xed_reg(XED_REG_RSI);
+			to.width_bits = 64;
 			from = xed_imm0(param.size_or_address,64);
-			//cerr << from.u.imm0 <<  "             " << to.u.reg << endl;
 			rc = create_mov_xed(&xedd, from, to);
 			if(rc == -1){
 				cerr<< "ERROR: create mov xed" << endl;
@@ -1065,16 +1068,25 @@ debug_cnt++;//TODO: debug
 			
 		}
 		else if(i==MOV_RDX) { //reg
-			to = xed_reg(XED_REG_RDX);
 			//cerr << param.operand_reg << endl;
-			
+			to = xed_reg(XED_REG_RDX);
 			if(param.type == AddIns || param.type == AddInsIndexReg){
+				if(xed_get_register_width_bits(param.operand_reg) == 64)
+				{
+					to = xed_reg(XED_REG_RDX);
+					to.width_bits = 64;
+				}
+				else if(xed_get_register_width_bits(param.operand_reg) == 32)
+				{
+					//cerr << "TEST" << endl;
+					to = xed_reg(XED_REG_EDX);
+					to.width_bits = 32;
+				}
 				from= xed_reg(param.operand_reg);
 			}
 			else{
 				from = xed_reg(XED_REG_R8 ); // Previous xedd_reg_invalid
 			}
-			//cerr << (ADDRINT)from.u.reg << "             " << (ADDRINT)to.u.reg << endl;
 			rc = create_mov_xed(&xedd, from, to);
 			if(rc == -1){
 				cerr<< "ERROR: create mov xed" << endl;
@@ -1085,18 +1097,27 @@ debug_cnt++;//TODO: debug
 		else if(i==MOV_RCX) {//immidiate /index reg val HERE
 			to = xed_reg(XED_REG_RCX);
 			if(param.type == AddInsIndexReg){
+				if(xed_get_register_width_bits(param.index_reg) == 64)
+				{
+					to = xed_reg(XED_REG_RCX);
+					to.width_bits = 64;
+				}
+				else if(xed_get_register_width_bits(param.index_reg) == 32)
+				{
+					//cerr << "TEST" << endl;
+					to = xed_reg(XED_REG_ECX);
+					to.width_bits = 32;
+				}
 				from = xed_reg(param.index_reg);
 			}
 			
 			else if(param.type == AddIns){
-				cerr << "TEST" << "              " << param.immediate << endl;
 				from = xed_imm0(param.immediate,64);
 			}
 			
 			else{
 				from = xed_reg(XED_REG_R8 ); // Previous xedd_reg_invalid
 			}
-			//cerr << from.u.reg << "             " << to.u.reg << endl;
 			rc = create_mov_xed(&xedd, from, to);
 			if(rc == -1){
 				cerr<< "ERROR: create mov xed" << endl;
@@ -1281,8 +1302,9 @@ int find_candidate_rtns_for_translation(IMG img)
 							par.size_or_address =  INS_Size(ins);
 							par.operand_reg = str2xed_reg_enum_t(ToUpper(REG_StringShort(operandReg)).c_str());
 							par.immediate = immediate_;
-							cerr << par.immediate << endl;
+							//cerr << par.immediate << endl;
 							par.type = AddIns;
+							//cerr << REG_StringShort(operandReg) << endl;
 							if(par.operand_reg == XED_REG_RFLAGS)
 							{
 								goto jmp;
@@ -1301,9 +1323,14 @@ int find_candidate_rtns_for_translation(IMG img)
 							parameters_to_wrapper_probed par;
 							par.ip = INS_Address(ins);
 							par.size_or_address =  INS_Size(ins);
-							par.operand_reg = str2xed_reg_enum_t(ToUpper(REG_StringShort(operandReg)).c_str());;
-							par.index_reg = str2xed_reg_enum_t(ToUpper(REG_StringShort(indexReg)).c_str());;
+							par.operand_reg = str2xed_reg_enum_t(ToUpper(REG_StringShort(operandReg)).c_str());
+							par.index_reg = str2xed_reg_enum_t(ToUpper(REG_StringShort(indexReg)).c_str());
+							//cerr << REG_StringShort(operandReg) << "                 " << REG_StringShort(indexReg) << endl;
 							par.type = AddInsIndexReg;
+							if(par.operand_reg == XED_REG_RFLAGS || par.index_reg == XED_REG_RFLAGS)
+							{
+								goto jmp;
+							}
 							insert_call_probed_wrapper(func_address,(ADDRINT)mmap_addr, par);
 							break;
 						}
@@ -1818,9 +1845,51 @@ int allocate_and_init_memory(IMG img)
 
 /*void* mallocWrapper (size_t size)
 {
-	Arg1Before("malloc",0)*/
+	Arg1Before(MALLOC,0);
+	void* ptr = malloc(size);
+	MallocAfter(MALLOC,ptr);
+	return ptr;
+}
 
+void freeWrapper (void* ptr)
+{
+	free(ptr);
+	afterFree(FREE,
+//void* NewMalloc
+*/
 
+/*int replaceMallocFree(IMG img) {
+ 
+    RTN rtnMalloc = RTN_FindByName(img, MALLOC);
+    if (RTN_Valid(rtnMalloc)) {
+        if (KnobVerbose) {
+            cout << "Replacting Malloc in" << IMG_Name(img) << endl;
+        }
+        PROTO
+        proto_malloc = PROTO_Allocate(PIN_PARG(void *), CALLINGSTD_DEFAULT, MALLOC, PIN_PARG(int),PIN_PARG_END());
+ 
+        RTN_ReplaceSignatureProbed(rtnMalloc, AFUNPTR(mallocWrapper),
+                IARG_PROTOTYPE, proto_malloc, IARG_ORIG_FUNCPTR,
+                IARG_FUNCARG_ENTRYPOINT_VALUE, 0, IARG_RETURN_IP, IARG_END);
+        PROTO_Free (proto_malloc);
+    }
+ 
+    RTN rtnFree = RTN_FindByName(img, FREE);
+    if (RTN_Valid(rtnFree)) {
+        if (KnobVerbose) {
+            cout << "Replacing Free in" << IMG_Name(img) << endl;
+        }
+        PROTO
+        proto_free = PROTO_Allocate(PIN_PARG(void*), CALLINGSTD_DEFAULT, FREE, PIN_PARG(ADDRINT),PIN_PARG_END());
+ 
+        RTN_ReplaceSignatureProbed(rtnFree, AFUNPTR(freeWrapper), IARG_PROTOTYPE,
+                proto_free, IARG_ORIG_FUNCPTR, IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
+                IARG_END);
+        PROTO_Free (proto_free);
+    }
+    return 0;
+}
+*/
 
 
 
@@ -1854,8 +1923,7 @@ VOID ImageLoad(IMG img, VOID *v)
 						   IARG_FUNCARG_ENTRYPOINT_VALUE, 0,
 						   IARG_END);
 		
-		    PROTO proto_malloc = PROTO_Allocate( PIN_PARG(void *), CALLINGSTD_DEFAULT,
-                                             "malloc", PIN_PARG(int), PIN_PARG_END() );	
+		    PROTO proto_malloc = PROTO_Allocate(PIN_PARG(void *), CALLINGSTD_DEFAULT, MALLOC, PIN_PARG(int),PIN_PARG_END());
 		
 			RTN_InsertCallProbed(mallocRtn, IPOINT_AFTER, (AFUNPTR)MallocAfter,
 						   IARG_FUNCRET_EXITPOINT_VALUE, IARG_PROTOTYPE, proto_malloc, IARG_END);
@@ -1875,8 +1943,7 @@ VOID ImageLoad(IMG img, VOID *v)
 	if(RTN_Valid(freeRtn) && RTN_IsSafeForProbedInsertion(freeRtn))
 	{
 			//RTN_Open(freeRtn);
-			PROTO proto_free = PROTO_Allocate( PIN_PARG(void), CALLINGSTD_DEFAULT,
-                                             "free", PIN_PARG(void*), PIN_PARG_END() );	
+			PROTO proto_free = PROTO_Allocate(PIN_PARG(void*), CALLINGSTD_DEFAULT, FREE, PIN_PARG(ADDRINT),PIN_PARG_END());
 			// Instrument free()
 			RTN_InsertCallProbed(freeRtn, IPOINT_AFTER, (AFUNPTR)AfterFree,
 						   IARG_ADDRINT, FREE,
@@ -1892,10 +1959,11 @@ VOID ImageLoad(IMG img, VOID *v)
 	{
 		cerr << "Damn it" << endl;
 	}*/
+	
 	if(RTN_Valid(mainRtn) && RTN_IsSafeForProbedInsertion(mainRtn))
 	{
 		
-									cerr << "We are here4"<< endl;
+
 			//RTN_Open(mainRtn);
 
 			RTN_InsertCallProbed(mainRtn, IPOINT_BEFORE, (AFUNPTR)mainBefore, IARG_END);
@@ -1909,7 +1977,9 @@ VOID ImageLoad(IMG img, VOID *v)
 		
 			PROTO_Free(proto_main);
 			//RTN_Close(mainRtn);
+		cerr << "We are here4"<< endl;
 	}
+	
 	
 	/* ============================================ */
 	/* malloc trace instrumentation				    */
